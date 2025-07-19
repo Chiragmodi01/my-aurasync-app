@@ -5,7 +5,7 @@ import { XMarkIcon, ArrowUturnLeftIcon, PlayIcon, SparklesIcon, CheckCircleIcon,
 // --- Spotify Authentication Mode ---
 // Set to 'true' for local testing (simulated login to bypass blob: URL issues)
 // Set to 'false' for Vercel deployment (enables actual Spotify OAuth Implicit Grant Flow)
-const USE_MOCK_SPOTIFY_AUTH = true; 
+const USE_MOCK_SPOTIFY_AUTH = false; 
 
 // --- General UI Styling Classes (Defined outside App component for consistent scope) ---
 const APP_CONTAINER_CLASSES = `
