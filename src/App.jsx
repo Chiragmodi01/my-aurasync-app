@@ -9,13 +9,13 @@ const USE_MOCK_SPOTIFY_AUTH = false;
 
 // --- General UI Styling Classes (Defined outside App component for consistent scope) ---
 const APP_CONTAINER_CLASSES = `
-  min-h-screen bg-black text-white font-inter flex flex-col items-center justify-start p-4
+  min-h-screen bg-black text-white font-rajdhani flex flex-col items-center justify-start p-4
   relative overflow-hidden transition-colors duration-500 ease-in-out
 `;
 
 const CARD_CLASSES = `
-  bg-black bg-opacity-70 backdrop-blur-md p-8 rounded-lg shadow-2xl
-  max-w-md w-full mx-auto my-4 border border-gray-800
+  bg-gradient-to-br from-gray-900/80 to-black/80 backdrop-blur-md p-8 rounded-lg shadow-2xl
+  max-w-md w-full mx-auto my-4 border border-rose-800
 `;
 
 const BUTTON_CLASSES = `
@@ -52,8 +52,8 @@ const App = () => {
   // --- Spotify API Configuration ---
   const SPOTIFY_CLIENT_ID = '22d8e96433ca47ffb6ed1a36db60adad'; // Your Spotify Client ID
   // Redirect URI for Spotify OAuth Implicit Grant Flow (MUST match Spotify Dashboard setting)
-  // For Vercel, this will be your deployed app's URL (e.g., 'https://your-app-name.vercel.app/')
-  const SPOTIFY_REDIRECT_URI = 'https://web-ide.projector.vm-platform.net/'; // Placeholder for local testing
+  // Dynamically set based on current origin for Vercel deployment flexibility
+  const SPOTIFY_REDIRECT_URI = window.location.origin; 
 
   const SPOTIFY_SCOPES = [
     'user-read-private',
@@ -505,17 +505,30 @@ const App = () => {
     setScreen('genre-selection');
   }, []);
 
+  const handleLogout = useCallback(() => {
+    setIsAuthenticated(false);
+    setSpotifyAccessToken(null);
+    setSpotifyUserId(null);
+    setScreen('welcome');
+    setPlaylist([]);
+    setPlaylistName('');
+    setSelectedGenres([]);
+    setCustomMood('');
+    setDiscoveryPreference(50);
+    showCustomModal('Logged out from Spotify.', 'success');
+  }, [showCustomModal]);
+
 
   // --- Render Logic ---
   return (
     <div className={APP_CONTAINER_CLASSES} style={{
-      backgroundImage: selectedScene ? `url(${selectedScene.image})` : 'none',
+      backgroundImage: screen !== 'welcome' && selectedScene ? `url(${selectedScene.image})` : 'none',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       transition: 'background-image 1s ease-in-out',
     }}>
       {/* Dynamic Background Overlay */}
-      {selectedScene && (
+      {screen !== 'welcome' && selectedScene && (
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-0 transition-opacity duration-500 ease-in-out"></div>
       )}
 
@@ -551,22 +564,24 @@ const App = () => {
 
       {/* --- Welcome Screen --- */}
       {screen === 'welcome' && (
-        <div className={`${CARD_CLASSES} z-10`}>
-          <h1 className="text-5xl font-extrabold text-center mb-4 text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-amber-200">
-            AuraSync
-          </h1>
-          <p className="text-center text-gray-300 mb-8 text-lg">
-            Unleash Your Perfect Vibe. Curated Soundscapes for Every Moment.
-          </p>
-          <button
-            onClick={handleSpotifyConnect}
-            className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} flex items-center justify-center space-x-2`}
-          >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17.9 10.9C14.7 9 9.3 8.7 6.1 10.6c-.4.2-.9 0-1.1-.4-.2-.4 0-.9.4-1.1 3.8-2.2 9.7-1.9 13.9.4.4.2.6.7.4 1.1-.2.4-.7.6-1.1.4zm-.9 3.1c-2.8-1.6-7-1.4-9.7.2-.3.2-.8 0-1-.3-.2-.3 0-.8.3-1 3.2-1.8 7.6-2 10.1-.5.3.2.4.7.2 1-.2.3-.7.4-1 .2zm-1.1 3.1c-2.3-1.3-4.8-1.2-7.1-.1-.3.1-.7 0-.8-.3-.1-.3 0-.7.3-.8 2.6-1.4 5.4-1.5 8-.1.3.2.4.6.2.9-.2.3-.6.4-.9.2zM12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0z" />
-            </svg>
-            <span>Connect with Spotify</span>
-          </button>
+        <div className={`fixed inset-0 flex items-center justify-center p-4 z-10`}> {/* Full screen centering */}
+            <div className={`${CARD_CLASSES} max-w-md w-full my-auto`}> {/* Use my-auto for vertical centering */}
+                <h1 className="text-5xl font-extrabold text-center mb-4 text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-amber-200">
+                    AuraSync
+                </h1>
+                <p className="text-center text-gray-300 mb-8 text-lg">
+                    Unleash Your Perfect Vibe. Curated Soundscapes for Every Moment.
+                </p>
+                <button
+                    onClick={handleSpotifyConnect}
+                    className={`${BUTTON_CLASSES} bg-spotifyGreen hover:bg-green-600 focus:ring-green-500 flex items-center justify-center space-x-2`}
+                >
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.9 10.9C14.7 9 9.3 8.7 6.1 10.6c-.4.2-.9 0-1.1-.4-.2-.4 0-.9.4-1.1 3.8-2.2 9.7-1.9 13.9.4.4.2.6.7.4 1.1-.2.4-.7.6-1.1.4zm-.9 3.1c-2.8-1.6-7-1.4-9.7.2-.3.2-.8 0-1-.3-.2-.3 0-.8.3-1 3.2-1.8 7.6-2 10.1-.5.3.2.4.7.2 1-.2.3-.7.4-1 .2zm-1.1 3.1c-2.3-1.3-4.8-1.2-7.1-.1-.3.1-.7 0-.8-.3-.1-.3 0-.7.3-.8 2.6-1.4 5.4-1.5 8-.1.3.2.4.6.2.9-.2.3-.6.4-.9.2zM12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0z" />
+                    </svg>
+                    <span>Connect with Spotify</span>
+                </button>
+            </div>
         </div>
       )}
 
@@ -754,9 +769,9 @@ const App = () => {
           </div>
           <div className="absolute top-4 right-4 z-20">
             <button
-              onClick={() => setScreen('welcome')}
+              onClick={handleLogout} // Logout button
               className={`p-2 rounded-full ${ACCENT_BLACK_CLASSES} focus:ring-rose-500`}
-              title="Close / Reset"
+              title="Logout"
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
