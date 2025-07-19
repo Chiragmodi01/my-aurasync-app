@@ -14,8 +14,8 @@ const APP_CONTAINER_CLASSES = `
 `;
 
 const CARD_CLASSES = `
-  bg-gradient-to-br from-gray-900/80 to-black/80 backdrop-blur-md p-8 rounded-lg shadow-2xl
-  max-w-md w-full mx-auto my-4 border border-rose-800
+  bg-white/5 backdrop-blur-xl p-8 rounded-lg shadow-2xl ring-1 ring-inset ring-white/10
+  max-w-md w-full mx-auto my-4
 `;
 
 const BUTTON_CLASSES = `
@@ -522,7 +522,9 @@ const App = () => {
   // --- Render Logic ---
   return (
     <div className={APP_CONTAINER_CLASSES} style={{
-      backgroundImage: screen !== 'welcome' && selectedScene ? `url(${selectedScene.image})` : 'none',
+      backgroundImage: screen === 'welcome' 
+        ? 'radial-gradient(circle at center, rgba(30,0,50,0.8) 0%, rgba(0,0,0,1) 70%)'
+        : (selectedScene ? `url(${selectedScene.image})` : 'none'),
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       transition: 'background-image 1s ease-in-out',
@@ -566,10 +568,10 @@ const App = () => {
       {screen === 'welcome' && (
         <div className={`fixed inset-0 flex items-center justify-center p-4 z-10`}> {/* Full screen centering */}
             <div className={`${CARD_CLASSES} max-w-md w-full my-auto`}> {/* Use my-auto for vertical centering */}
-                <h1 className="text-5xl font-extrabold text-center mb-4 text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-amber-200">
+                <h1 className="text-5xl font-extrabold text-center mb-4 text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-amber-200 font-rajdhani">
                     AuraSync
                 </h1>
-                <p className="text-center text-gray-300 mb-8 text-lg">
+                <p className="text-center text-gray-300 mb-8 text-lg font-rajdhani">
                     Unleash Your Perfect Vibe. Curated Soundscapes for Every Moment.
                 </p>
                 <button
