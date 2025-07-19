@@ -112,8 +112,7 @@ const App = () => {
     setModalMessage('');
   }, []);
 
-  // --- Spotify API Calls (These functions will now use the simulated token or real token) ---
-  // Moved these definitions earlier so they are available when called in useEffect
+  // --- Spotify API Calls (These functions need to be defined before they are used in useEffect) ---
   const getSpotifyUserProfile = useCallback(async (token) => {
     try {
       const response = await fetch('https://api.spotify.com/v1/me', {
