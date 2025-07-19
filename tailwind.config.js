@@ -2,17 +2,16 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // This tells Tailwind to scan all your JS/JSX/TS/TSX files in src for classes
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
       fontFamily: {
-        inter: ['Inter', 'sans-serif'], // Define Inter font family
+        rajdhani: ['Rajdhani', 'sans-serif'], // Define Rajdhani font family
       },
       colors: {
-        // Define your custom colors if needed, or rely on Tailwind's defaults
-        // Example:
-        // 'rose-800': '#9F1239',
+        spotifyGreen: '#1DB954', // Spotify's official green
+        // You can add other custom colors here if needed
       }
     },
   },
