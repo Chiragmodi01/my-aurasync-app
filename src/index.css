@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap');
 
-/* Ensure html, body, and root take full height */
+/* Ensure html, body, and root take full viewport height */
 html, body, #root {
-  height: 100%;
+  height: 100vh; /* Changed from 100% to 100vh */
   margin: 0;
   padding: 0;
   overflow-x: hidden; /* Prevent horizontal scroll */
