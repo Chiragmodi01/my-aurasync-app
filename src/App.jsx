@@ -494,12 +494,16 @@ const App = () => {
     // If you are running this outside of Canvas and need to provide a key,
     // replace `""` with your actual Gemini API key.
     const apiKey = ""; 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    // const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; // Old way
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`; // New way, API key in headers
 
     try {
         const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey // Pass API key in headers
+            },
             body: JSON.stringify(payload)
         });
         
@@ -847,7 +851,7 @@ const App = () => {
             </p>
             <button
               onClick={handleSelectScene}
-              className={[BUTTON_CLASSES, PRIMARY_RED_CLASSES, 'max-w-md'].filter(Boolean).join(' ')} // Fixed syntax error
+              className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} max-w-md`} // Fixed syntax error
             >
               Select This Scene
             </button>
@@ -1000,7 +1004,7 @@ const App = () => {
 
       {/* Version Text at the very bottom of the app */}
       {screen === 'welcome' && (
-        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.6</p>
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.7</p>
       )}
     </div>
   );
