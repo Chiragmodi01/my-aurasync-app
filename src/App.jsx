@@ -583,13 +583,7 @@ const App = () => {
     const apiKey = ""; // <--- PASTE YOUR GEMINI API KEY HERE!
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; 
 
-    console.log("Gemini API Key before fetch:", apiKey); // DEBUG: Log API key value
-
     try {
-        if (!apiKey || apiKey === "PASTE_YOUR_GEMINI_API_KEY_HERE" || apiKey === "") {
-            throw new Error("Gemini API Key is not configured. Please paste your API key in App.jsx.");
-        }
-
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 
