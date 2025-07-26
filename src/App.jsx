@@ -144,8 +144,14 @@ const App = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        const contentType = response.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        } else {
+            const errorText = await response.text();
+            throw new Error(`Spotify API error (Non-JSON response): ${response.statusText} - ${response.status} - Raw: ${errorText.substring(0, 200)}...`);
+        }
       }
       return await response.json();
     } catch (error) {
@@ -161,8 +167,14 @@ const App = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        const contentType = response.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        } else {
+            const errorText = await response.text();
+            throw new Error(`Spotify API error (Non-JSON response): ${response.statusText} - ${response.status} - Raw: ${errorText.substring(0, 200)}...`);
+        }
       }
       return await response.json();
     } catch (error) {
@@ -185,8 +197,14 @@ const App = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        const contentType = response.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        } else {
+            const errorText = await response.text();
+            throw new Error(`Spotify API error (Non-JSON response): ${response.statusText} - ${response.status} - Raw: ${errorText.substring(0, 200)}...`);
+        }
       }
       return await response.json();
     } catch (error) {
@@ -211,8 +229,14 @@ const App = () => {
         })
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        const contentType = response.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        } else {
+            const errorText = await response.text();
+            throw new Error(`Spotify API error (Non-JSON response): ${response.statusText} - ${response.status} - Raw: ${errorText.substring(0, 200)}...`);
+        }
       }
       return await response.json();
     } catch (error) {
@@ -235,8 +259,14 @@ const App = () => {
         })
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        const contentType = response.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        } else {
+            const errorText = await response.text();
+            throw new Error(`Spotify API error (Non-JSON response): ${response.statusText} - ${response.status} - Raw: ${errorText.substring(0, 200)}...`);
+        }
       }
       return await response.json();
     } catch (error) {
@@ -330,8 +360,14 @@ const App = () => {
             });
 
             if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(`Token exchange failed: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+              const contentType = response.headers.get('Content-Type');
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    throw new Error(`Token exchange failed: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`Token exchange failed (Non-JSON response): ${response.statusText} - ${response.status} - Raw: ${errorText.substring(0, 200)}...`);
+                }
             }
 
             const data = await response.json();
@@ -445,14 +481,17 @@ const App = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        const result = await response.json();
+        const result = await response.json(); // Attempt to parse JSON
+        
+        // Check if the response structure is as expected
         if (result.candidates && result.candidates.length > 0 &&
             result.candidates[0].content && result.candidates[0].content.parts &&
             result.candidates[0].content.parts.length > 0) {
             const jsonString = result.candidates[0].content.parts[0].text;
-            console.log("Gemini Raw Response:", jsonString);
+            console.log("Gemini Raw Response (parsed):", jsonString);
             return JSON.parse(jsonString);
         } else {
+            console.error("Gemini API returned an unexpected structure or no content:", JSON.stringify(result, null, 2));
             throw new Error("Gemini API returned an unexpected structure or no content.");
         }
     } catch (error) {
