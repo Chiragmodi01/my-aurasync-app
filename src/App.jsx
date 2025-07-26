@@ -494,8 +494,7 @@ const App = () => {
     // If you are running this outside of Canvas and need to provide a key,
     // replace `""` with your actual Gemini API key.
     const apiKey = ""; 
-    // const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; // Old way
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`; // New way, API key in headers
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`; // API key in headers
 
     try {
         const response = await fetch(apiUrl, {
@@ -599,6 +598,7 @@ const App = () => {
         id: track.id,
         title: track.name,
         artist: track.artists.map(a => a.name).join(', '),
+        album: track.album.name, // Added album name
         albumArt: track.album.images[0]?.url || 'https://placehold.co/60x60/000/FFF?text=NA',
         uri: track.uri,
         isNew: !userTopTrackIds.includes(track.id)
@@ -618,34 +618,33 @@ const App = () => {
   }, [spotifyAccessToken, spotifyUserId, selectedScene, selectedGenres, customMood, discoveryPreference, showCustomModal, setIsLoading, setLoadingMessage, setPlaylistName, setPlaylist, setScreen, getSpotifyUserTopItems, callGeminiAPI, getSpotifyRecommendations]);
 
   const handleSaveToSpotify = useCallback(async () => {
-    if (!spotifyAccessToken || !spotifyUserId || playlist.length === 0) {
-      showCustomModal('No playlist to save or not connected to Spotify.', 'error');
-      return;
-    }
+    // This functionality is currently paused as per user request.
+    showCustomModal('Spotify playlist saving is paused for demonstration purposes.', 'info');
+    console.log('Spotify playlist saving is paused.');
+    // setIsLoading(true);
+    // setLoadingMessage('Saving playlist to Spotify...');
+    // try {
+    //   const newPlaylist = await createSpotifyPlaylist(
+    //     spotifyAccessToken,
+    //     spotifyUserId,
+    //     playlistName,
+    //     `AuraSync playlist for your ${selectedScene?.name || 'custom'} vibe.`
+    //   );
 
-    setIsLoading(true);
-    setLoadingMessage('Saving playlist to Spotify...');
-    try {
-      const newPlaylist = await createSpotifyPlaylist(
-        spotifyAccessToken,
-        spotifyUserId,
-        playlistName,
-        `AuraSync playlist for your ${selectedScene?.name || 'custom'} vibe.`
-      );
+    //   const trackUris = playlist.map(track => track.uri);
+    //   await addTracksToPlaylist(spotifyAccessToken, newPlaylist.id, trackUris);
 
-      const trackUris = playlist.map(track => track.uri);
-      await addTracksToPlaylist(spotifyAccessToken, newPlaylist.id, trackUris);
+    //   showCustomModal('Playlist saved to Spotify successfully!', 'success');
+    //   console.log('Playlist saved:', newPlaylist.external_urls.spotify);
+    // } catch (error) {
+    //   console.error('Error saving playlist to Spotify:', error);
+    //   showCustomModal(`Failed to save playlist: ${error.message}`, 'error');
+    // } finally {
+    //   setIsLoading(false);
+    //   setLoadingMessage('');
+    // }
+  }, [showCustomModal]);
 
-      showCustomModal('Playlist saved to Spotify successfully!', 'success');
-      console.log('Playlist saved:', newPlaylist.external_urls.spotify);
-    } catch (error) {
-      console.error('Error saving playlist to Spotify:', error);
-      showCustomModal(`Failed to save playlist: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
-    }
-  }, [spotifyAccessToken, spotifyUserId, playlist, playlistName, selectedScene, showCustomModal, setIsLoading, setLoadingMessage, createSpotifyPlaylist, addTracksToPlaylist]);
 
   const handleSelectScene = useCallback(() => {
     // This function is now called when the user explicitly clicks "Select This Scene"
@@ -796,7 +795,7 @@ const App = () => {
             {/* Scene Cards Container (Swiping/Scrolling) */}
             <div
               ref={cardContainerRef}
-              className={`relative w-full max-w-md h-[450px] min-h-[400px] flex items-center
+              className={`relative w-full h-[450px] min-h-[400px] flex items-center
                 ${isTouchDevice ? 'overflow-hidden justify-center' : 'overflow-x-auto whitespace-nowrap scrollbar-hide gap-x-8'}`} /* Conditional classes, increased width, added gap-x-8 */
               onScroll={isTouchDevice ? undefined : handleScroll} /* Only for non-touch devices */
             >
@@ -851,7 +850,7 @@ const App = () => {
             </p>
             <button
               onClick={handleSelectScene}
-              className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} max-w-md`} // Fixed syntax error
+              className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} w-full max-w-md`} // Adjusted to w-full max-w-md
             >
               Select This Scene
             </button>
@@ -972,6 +971,7 @@ const App = () => {
                     <div className="flex-grow">
                       <p className="text-lg font-semibold text-gray-100">{song.title}</p>
                       <p className="text-sm text-gray-400">{song.artist}</p>
+                      <p className="text-xs text-gray-500">{song.album}</p> {/* Display album name */}
                     </div>
                     {song.isNew && (
                       <SparklesIcon className="h-5 w-5 text-amber-300" title="New Discovery" />
@@ -1004,7 +1004,7 @@ const App = () => {
 
       {/* Version Text at the very bottom of the app */}
       {screen === 'welcome' && (
-        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.7</p>
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.8</p>
       )}
     </div>
   );
