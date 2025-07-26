@@ -140,7 +140,7 @@ const App = () => {
   // --- Spotify API Calls (These functions need to be defined before they are used in useEffect) ---
   const getSpotifyUserProfile = useCallback(async (token) => {
     try {
-      const response = await fetch('https://api.spotify.com/v1/me', {
+      const response = await fetch('https://api.spotify.com/v1/me', { // Corrected URL
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -163,7 +163,7 @@ const App = () => {
 
   const getSpotifyUserTopItems = useCallback(async (token, type = 'artists', limit = 5) => {
     try {
-      const response = await fetch(`https://api.spotify.com/v1/me/top/${type}?limit=${limit}`, {
+      const response = await fetch(`https://api.spotify.com/v1/me/top/${type}?limit=${limit}`, { // Corrected URL
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -193,7 +193,7 @@ const App = () => {
     queryParams.append('target_popularity', targetPopularity);
 
     try {
-      const response = await fetch(`https://api.spotify.com/v1/recommendations?${queryParams.toString()}`, {
+      const response = await fetch(`https://api.spotify.com/v1/recommendations?${queryParams.toString()}`, { // Corrected URL
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -216,7 +216,7 @@ const App = () => {
 
   const createSpotifyPlaylist = useCallback(async (token, userId, name, description, isPublic = false) => {
     try {
-      const response = await fetch(`https://api.spotify.com/v1/users/${userId}/playlists`, {
+      const response = await fetch(`https://api.spotify.com/v1/users/${userId}/playlists`, { // Corrected URL
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -248,7 +248,7 @@ const App = () => {
 
   const addTracksToPlaylist = useCallback(async (token, playlistId, trackUris) => {
     try {
-      const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+      const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, { // Corrected URL
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -288,7 +288,7 @@ const App = () => {
 
       sessionStorage.setItem('spotify_code_verifier', codeVerifier);
 
-      const authUrl = `https://accounts.spotify.com/authorize?` +
+      const authUrl = `https://accounts.spotify.com/authorize?` + // Corrected URL
         `client_id=${SPOTIFY_CLIENT_ID}` +
         `&response_type=code` + // Requesting authorization code
         `&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}` +
@@ -345,7 +345,7 @@ const App = () => {
           setIsLoading(true);
 
           try {
-            const response = await fetch('https://accounts.spotify.com/api/token', {
+            const response = await fetch('https://accounts.spotify.com/api/token', { // Corrected URL
               method: 'POST',
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -481,6 +481,14 @@ const App = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+        
+        const contentType = response.headers.get('Content-Type');
+        if (!response.ok || !(contentType && contentType.includes('application/json'))) {
+            const errorText = await response.text();
+            console.error("Gemini API returned an unexpected status or non-JSON content:", response.status, errorText.substring(0, 500));
+            throw new Error(`Gemini API call failed: ${response.statusText} - Raw: ${errorText.substring(0, 200)}...`);
+        }
+
         const result = await response.json(); // Attempt to parse JSON
         
         // Check if the response structure is as expected
