@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 // Import Heroicons for a sleek look
-import { XMarkIcon, ArrowUturnLeftIcon, PlayIcon, SparklesIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'; // Outline style for minimalist look
+import { XMarkIcon, ArrowUturnLeftIcon, PlayIcon, SparklesIcon, CheckCircleIcon, ExclamationCircleIcon, UserCircleIcon } from '@heroicons/react/24/outline'; // Outline style for minimalist look
 
 // --- General UI Styling Classes (Defined outside App component for consistent scope) ---
 const APP_CONTAINER_CLASSES = `
   min-h-screen bg-black text-white font-rajdhani flex flex-col items-center justify-start p-4
-  relative overflow-hidden transition-colors duration-500 ease-in-out
+  relative overflow-hidden transition-colors duration-300 ease-in-out
 `;
 
 const CARD_CLASSES = `
@@ -15,8 +15,8 @@ const CARD_CLASSES = `
 
 const BUTTON_CLASSES = `
   w-full py-3 px-6 rounded-lg font-bold text-lg transition-all duration-300
-  focus:outline-none focus:ring-4 focus:ring-offset-2
-  shadow-lg hover:shadow-xl hover:scale-105
+  focus:outline-none focus:ring-1 focus:ring-offset-0 /* Changed: ring-offset-0 removed, ring-1 */
+  shadow-lg hover:shadow-xl
 `;
 
 // AuraSync specific color styles
@@ -63,6 +63,8 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [spotifyAccessToken, setSpotifyAccessToken] = useState(null);
   const [spotifyUserId, setSpotifyUserId] = useState(null);
+  const [userDisplayName, setUserDisplayName] = useState(null);
+  const [userProfileImage, setUserProfileImage] = useState(null);
   const [screen, setScreen] = useState('welcome'); // 'welcome', 'scene-selection', 'genre-selection', 'playlist-display'
   
   // Initialize selectedScene directly with a stable reference
@@ -80,6 +82,7 @@ const App = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [modalType, setModalType] = useState('success');
+  const [showUserMenu, setShowUserMenu] = useState(false); // State for user profile dropdown
 
   // --- Card Swiping State ---
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -340,6 +343,8 @@ const App = () => {
             const userProfile = await getSpotifyUserProfile(data.access_token);
             if (userProfile && userProfile.id) {
               setSpotifyUserId(userProfile.id);
+              setUserDisplayName(userProfile.display_name || 'Spotify User');
+              setUserProfileImage(userProfile.images?.[0]?.url || null);
               console.log('Spotify User ID:', userProfile.id);
               setScreen('scene-selection');
             } else {
@@ -378,7 +383,8 @@ const App = () => {
   const onTouchEnd = useCallback(() => {
     setIsDragging(false);
     if (cardContainerRef.current) {
-      const threshold = cardContainerRef.current.offsetWidth / 3; // Swipe distance threshold, adjusted for better feel
+      // Reduced threshold for easier swiping
+      const threshold = cardContainerRef.current.offsetWidth / 5; 
 
       if (currentTranslateX < -threshold) {
         // Swiped left (next card)
@@ -577,6 +583,8 @@ const App = () => {
     setIsAuthenticated(false);
     setSpotifyAccessToken(null);
     setSpotifyUserId(null);
+    setUserDisplayName(null);
+    setUserProfileImage(null);
     setScreen('welcome');
     setPlaylist([]);
     setPlaylistName('');
@@ -595,7 +603,7 @@ const App = () => {
         : (selectedScene ? `url(${selectedScene.image})` : 'none'),
       backgroundSize: 'cover',
       backgroundPosition: 'center',
-      transition: 'background-image 1s ease-in-out',
+      transition: 'background-image 0.3s ease-in-out', // Faster background transition
     }}>
       {/* Dynamic Background Overlay */}
       {screen !== 'welcome' && selectedScene && (
@@ -632,6 +640,34 @@ const App = () => {
         </div>
       )}
 
+      {/* User Profile Icon and Dropdown */}
+      {isAuthenticated && screen !== 'welcome' && (
+        <div className="absolute top-4 right-4 z-30">
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center space-x-2 p-2 rounded-full bg-black bg-opacity-50 hover:bg-opacity-70 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+            title="User Menu"
+          >
+            {userProfileImage ? (
+              <img src={userProfileImage} alt="User Profile" className="h-8 w-8 rounded-full object-cover" />
+            ) : (
+              <UserCircleIcon className="h-8 w-8 text-gray-300" />
+            )}
+            <span className="text-gray-200 text-sm font-semibold hidden sm:inline">{userDisplayName}</span>
+          </button>
+          {showUserMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-gray-900 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
+              <button
+                onClick={handleLogout}
+                className="block w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-gray-800"
+              >
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* --- Welcome Screen --- */}
       {screen === 'welcome' && (
         <div className={`fixed inset-0 flex items-center justify-center p-4 z-10`}> {/* Full screen centering */}
@@ -658,16 +694,7 @@ const App = () => {
       {/* --- Scene Selection Screen --- */}
       {screen === 'scene-selection' && (
         <div className="flex flex-col items-center justify-start w-full h-full relative z-10 p-4">
-          {/* Top Navigation */}
-          <div className="absolute top-4 right-4 z-20">
-            <button
-              onClick={() => setScreen('welcome')}
-              className={`p-2 rounded-full ${ACCENT_BLACK_CLASSES} focus:ring-rose-500`}
-              title="Close / Reset"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
+          {/* Removed the X button from here */}
 
           <h2 className="text-4xl font-bold text-center mb-8 text-gray-100 drop-shadow-lg">
             Set Your Scene.
@@ -687,7 +714,7 @@ const App = () => {
                 transform: `translateX(calc(-50% + ${offset * 20}px)) scale(${1 - Math.abs(offset) * 0.05})`, // Small offset, subtle scale
                 opacity: 1 - Math.abs(offset) * 0.1, // Fade out slightly
                 zIndex: 100 - Math.abs(offset), // Closer cards on top
-                transition: 'transform 0.3s ease-out, opacity 0.3s ease-out', // Smooth transition
+                transition: 'transform 0.2s ease-out, opacity 0.2s ease-out', // Faster transition
                 left: '50%', // Center horizontally
               };
 
@@ -769,7 +796,7 @@ const App = () => {
                   border-2
                   ${selectedGenres.includes(genre)
                     ? `${PRIMARY_RED_CLASSES} text-white border-rose-600 shadow-lg`
-                    : `${SECONDARY_YELLOW_CLASSES} text-black border-amber-300 shadow-md hover:scale-105`
+                    : `${SECONDARY_YELLOW_CLASSES} text-black border-amber-300 shadow-md`
                   }
                 `}
               >
@@ -816,7 +843,7 @@ const App = () => {
           {/* Generate Playlist Button */}
           <button
             onClick={handleGeneratePlaylist}
-            className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES}`}
+            className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} ${selectedGenres.length === 0 && !customMood ? 'opacity-50 cursor-not-allowed shadow-none' : ''}`}
             disabled={selectedGenres.length === 0 && !customMood}
           >
             Forge My Aura
@@ -837,15 +864,7 @@ const App = () => {
               <ArrowUturnLeftIcon className="h-6 w-6" />
             </button>
           </div>
-          <div className="absolute top-4 right-4 z-20">
-            <button
-              onClick={handleLogout} // Logout button
-              className={`p-2 rounded-full ${ACCENT_BLACK_CLASSES} focus:ring-rose-500`}
-              title="Logout"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
+          {/* Logout button is now in the User Profile dropdown */}
 
           <h2 className="text-3xl font-bold text-center mb-6 text-gray-100">
             {playlistName || `AuraSync: Your ${selectedScene?.name || 'Custom'} Pulse`}
