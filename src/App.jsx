@@ -7,15 +7,10 @@ import { XMarkIcon, ArrowUturnLeftIcon, PlayIcon, SparklesIcon, CheckCircleIcon,
 // Set to 'false' for actual Spotify OAuth flow.
 const USE_DEV_SPOTIFY_TOKEN_MODE = false; 
 
-// IMPORTANT: PASTE YOUR SPOTIFY ACCESS TOKEN HERE FOR DEV_TESTING_MODE
-// How to get your token: 
-// 1. Log in to Spotify via the app once (regular flow).
-// 2. Open browser developer tools (F12 / Cmd+Option+I).
-// 3. Go to the 'Network' tab.
-// 4. Look for a request to 'https://api.spotify.com/v1/me' or 'https://accounts.spotify.com/api/token'.
-// 5. In the 'Headers' or 'Response' tab for that request, find and copy the 'access_token' (a long string).
-const SPOTIFY_DEV_ACCESS_TOKEN = 'PASTE_YOUR_SPOTIFY_ACCESS_TOKEN_HERE'; 
-// Example: 'BQB7uR... (your long token)'
+// IMPORTANT: This value will be kept intact as per user's request.
+// You MUST update this with a NEW, FRESH Spotify Access Token if it expires (they last about 1 hour).
+// Get a fresh token from: https://developer.spotify.com/documentation/web-playback-sdk/quick-start/
+const SPOTIFY_DEV_ACCESS_TOKEN = ''; 
 
 // --- General UI Styling Classes (Defined outside App component for consistent scope) ---
 const APP_CONTAINER_CLASSES = `
@@ -109,6 +104,9 @@ const App = () => {
   const [currentTranslateX, setCurrentTranslateX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const cardContainerRef = useRef(null); // Ref for the container to get its width for swipe threshold
+
+  // New state for Spotify's available genre seeds
+  const [spotifyAvailableGenres, setSpotifyAvailableGenres] = useState([]);
 
   // Detect if device is touch-enabled
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -228,13 +226,60 @@ const App = () => {
     }
   }, [showCustomModal]);
 
+  // New Spotify API call to get available genre seeds
+  const getSpotifyAvailableGenreSeeds = useCallback(async (token) => {
+    try {
+      const response = await fetch('https://api.spotify.com/v1/recommendations/available-genre-seeds', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const contentType = response.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            throw new Error(`Spotify API error fetching genre seeds: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+        } else {
+            const errorText = await response.text();
+            throw new Error(`Spotify API error fetching genre seeds (Non-JSON response): ${response.statusText} - ${response.status} - Raw: ${errorText.substring(0, 200)}...`);
+        }
+      }
+      const data = await response.json();
+      console.log('Spotify Available Genre Seeds:', data.genres);
+      return data.genres;
+    } catch (error) {
+      console.error('Error fetching Spotify available genre seeds:', error);
+      showCustomModal(`Failed to fetch Spotify genre seeds: ${error.message}. This might affect recommendations.`, 'error');
+      return []; // Return empty array on error
+    }
+  }, [showCustomModal]);
+
   const getSpotifyRecommendations = useCallback(async (token, seedArtists, seedGenres, seedTracks, targetPopularity, limit = 20) => {
     const queryParams = new URLSearchParams();
-    if (seedArtists.length > 0) queryParams.append('seed_artists', seedArtists.join(','));
-    if (seedGenres.length > 0) queryParams.append('seed_genres', seedGenres.join(','));
-    if (seedTracks.length > 0) queryParams.append('seed_tracks', seedTracks.join(','));
+    // Filter out any empty or invalid seeds
+    const validSeedArtists = seedArtists.filter(id => id && typeof id === 'string');
+    const validSeedGenres = seedGenres.filter(genre => genre && typeof genre === 'string');
+    const validSeedTracks = seedTracks.filter(id => id && typeof id === 'string');
+
+    if (validSeedArtists.length > 0) queryParams.append('seed_artists', validSeedArtists.join(','));
+    if (validSeedGenres.length > 0) queryParams.append('seed_genres', validSeedGenres.join(','));
+    if (validSeedTracks.length > 0) queryParams.append('seed_tracks', validSeedTracks.join(','));
+    
     queryParams.append('limit', limit);
     queryParams.append('target_popularity', targetPopularity);
+
+    // Fallback if no valid seeds after filtering
+    if (validSeedArtists.length === 0 && validSeedGenres.length === 0 && validSeedTracks.length === 0) {
+      console.warn('No valid seeds provided for Spotify recommendations. Falling back to default genres.');
+      queryParams.append('seed_genres', 'pop,dance,electronic'); // Default to generic genres
+    }
+
+    // Log the final seeds being sent to Spotify
+    console.log("Spotify Recommendations - Final Seeds being sent:", {
+      artists: validSeedArtists,
+      genres: validSeedGenres,
+      tracks: validSeedTracks,
+      fallbackUsed: (validSeedArtists.length === 0 && validSeedGenres.length === 0 && validSeedTracks.length === 0)
+    });
+
 
     try {
       const response = await fetch(`https://api.spotify.com/v1/recommendations?${queryParams.toString()}`, {
@@ -323,7 +368,7 @@ const App = () => {
 
   // --- Spotify Authentication Logic (Authorization Code Flow with PKCE) ---
   const handleSpotifyConnect = useCallback(async () => {
-    if (USE_DEV_SPOTIFY_TOKEN_MODE && SPOTIFY_DEV_ACCESS_TOKEN && SPOTIFY_DEV_ACCESS_TOKEN !== 'PASTE_YOUR_SPOTIFY_ACCESS_TOKEN_HERE') {
+    if (USE_DEV_SPOTIFY_TOKEN_MODE && SPOTIFY_DEV_ACCESS_TOKEN) { // Removed the 'PASTE_YOUR_SPOTIFY_ACCESS_TOKEN_HERE' check as it's now a fixed value
       setIsLoading(true);
       setLoadingMessage('Using developer access token...');
       try {
@@ -336,9 +381,14 @@ const App = () => {
           setUserDisplayName(userProfile.display_name || 'Dev User');
           setUserProfileImage(userProfile.images?.[0]?.url || null);
           console.log('Developer Spotify Access Token used successfully!');
+
+          // NEW: Fetch available genre seeds after successful dev auth
+          const genres = await getSpotifyAvailableGenreSeeds(SPOTIFY_DEV_ACCESS_TOKEN);
+          setSpotifyAvailableGenres(genres);
+
           setScreen('scene-selection');
         } else {
-          throw new Error('Could not retrieve Spotify user ID with provided developer token.');
+          throw new Error('Could not retrieve Spotify user ID with provided developer token. Please check your token.');
         }
       } catch (error) {
         console.error('Error using developer Spotify token:', error);
@@ -377,7 +427,7 @@ const App = () => {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [setIsLoading, setLoadingMessage, showCustomModal, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES, getSpotifyUserProfile]);
+  }, [setIsLoading, setLoadingMessage, showCustomModal, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES, getSpotifyUserProfile, getSpotifyAvailableGenreSeeds]);
 
   // Effect to handle Spotify OAuth callback (PKCE)
   useEffect(() => {
@@ -456,6 +506,11 @@ const App = () => {
               setUserDisplayName(userProfile.display_name || 'Spotify User');
               setUserProfileImage(userProfile.images?.[0]?.url || null);
               console.log('Spotify User ID:', userProfile.id);
+
+              // NEW: Fetch available genre seeds after successful auth
+              const genres = await getSpotifyAvailableGenreSeeds(data.access_token);
+              setSpotifyAvailableGenres(genres);
+
               setScreen('scene-selection');
             } else {
               throw new Error('Could not retrieve Spotify user ID from profile data.');
@@ -475,7 +530,7 @@ const App = () => {
       };
       handleSpotifyCallback();
     }
-  }, [getSpotifyUserProfile, showCustomModal, setIsLoading, setIsAuthenticated, setScreen, setLoadingMessage, setSpotifyAccessToken, setSpotifyUserId, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI]);
+  }, [getSpotifyUserProfile, getSpotifyAvailableGenreSeeds, showCustomModal, setIsLoading, setIsAuthenticated, setScreen, setLoadingMessage, setSpotifyAccessToken, setSpotifyUserId, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI]);
 
 
   // --- Card Swiping/Scrolling Logic (Reverted to non-infinite scroll) ---
@@ -577,13 +632,15 @@ const App = () => {
             }
         }
     };
-    // IMPORTANT: PASTE YOUR GEMINI API KEY HERE.
-    // This will ensure the API key is present and bypass Canvas environment's automatic injection if it's not working.
-    // Example: 'AIzaSyC...'
-    const apiKey = ""; // <--- PASTE YOUR GEMINI API KEY HERE!
+    // IMPORTANT: This value will be kept empty as per user's request.
+    const apiKey = ""; 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; 
 
+    console.log("Gemini API Key before fetch:", apiKey); // DEBUG: Log API key value
+
     try {
+        // The throw error block for empty API key is intentionally removed as per user request.
+        // If Canvas environment does not inject the key, the API call might still fail with a 403 from Google.
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 
@@ -614,7 +671,6 @@ const App = () => {
         }
     } catch (error) {
         console.error('Error calling Gemini API:', error);
-        // More specific error message if API key is empty
         showCustomModal(`Failed to get AI recommendations: ${error.message}. Please try again.`, 'error');
         throw error;
     }
@@ -636,32 +692,36 @@ const App = () => {
       const topTracksData = await getSpotifyUserTopItems(spotifyAccessToken, 'tracks', 5);
       const userTopArtistIds = topArtistsData.items.map(artist => artist.id);
       const userTopTrackIds = topTracksData.items.map(track => track.id);
-      const userTopGenres = topArtistsData.items.flatMap(artist => artist.genres);
+      // Filter user's top genres against available Spotify genres
+      const userTopGenres = topArtistsData.items.flatMap(artist => artist.genres)
+                                                .filter(genre => spotifyAvailableGenres.includes(genre.toLowerCase()));
+
 
       // Combine user's selected genres with top genres for Gemini
-      const combinedGenres = [...new Set([...selectedGenres, ...userTopGenres])].slice(0, 5);
+      const combinedGenresForGemini = [...new Set([...selectedGenres, ...userTopGenres])].slice(0, 5);
 
       // 2. Call Gemini API for smart recommendations and playlist name
-      const geminiResult = await callGeminiAPI(customMood, combinedGenres, topArtistsData.items, topTracksData.items);
+      const geminiResult = await callGeminiAPI(customMood, combinedGenresForGemini, topArtistsData.items, topTracksData.items);
       const { playlistNameSuggestion, spotifySeedGenres, spotifySeedArtists } = geminiResult;
 
       setPlaylistName(playlistNameSuggestion || `${selectedScene?.name || 'AuraSync'} Mix`);
 
       // Prepare seeds for Spotify recommendations
-      let finalSeedArtists = spotifySeedArtists.slice(0, 2);
-      let finalSeedGenres = spotifySeedGenres.slice(0, 3);
+      let finalSeedArtists = [];
+      let finalSeedGenres = [];
       let finalSeedTracks = [];
 
-      // Ensure we always have at least one seed type if possible
-      if (finalSeedArtists.length === 0 && userTopArtistIds.length > 0) {
-        finalSeedArtists = userTopArtistIds.slice(0, 2);
-      }
-      if (finalSeedGenres.length === 0 && userTopGenres.length > 0) {
-        finalSeedGenres = userTopGenres.slice(0, 3);
-      }
-      if (finalSeedTracks.length === 0 && userTopTrackIds.length > 0) {
-          finalSeedTracks = userTopTrackIds.slice(0, 5);
-      }
+      // Filter Gemini's suggested artists and genres against validity
+      const filteredGeminiArtists = spotifySeedArtists.filter(id => id && typeof id === 'string');
+      // Filter Gemini's suggested genres against the actual available Spotify genre seeds
+      const filteredGeminiGenres = spotifySeedGenres.filter(genre => 
+        genre && typeof genre === 'string' && spotifyAvailableGenres.includes(genre.toLowerCase())
+      );
+
+      // Prioritize Gemini's suggestions, then user's top items, then fallbacks
+      finalSeedArtists = [...new Set([...filteredGeminiArtists, ...userTopArtistIds])].slice(0, 2);
+      finalSeedGenres = [...new Set([...filteredGeminiGenres, ...userTopGenres])].slice(0, 3);
+      finalSeedTracks = userTopTrackIds.slice(0, 5); // Always use user's top tracks if available
 
       // Fallback if no seeds could be generated from user data or Gemini
       if (finalSeedArtists.length === 0 && finalSeedGenres.length === 0 && finalSeedTracks.length === 0) {
@@ -671,6 +731,13 @@ const App = () => {
 
       setLoadingMessage('Fetching Spotify recommendations...');
       const targetPopularity = 100 - discoveryPreference;
+
+      // Log the FINAL seeds being sent to Spotify
+      console.log("Spotify Recommendations - Final Seeds being sent:", {
+        artists: finalSeedArtists,
+        genres: finalSeedGenres,
+        tracks: finalSeedTracks
+      });
 
       const recommendations = await getSpotifyRecommendations(
         spotifyAccessToken,
@@ -702,7 +769,7 @@ const App = () => {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [spotifyAccessToken, spotifyUserId, selectedScene, selectedGenres, customMood, discoveryPreference, showCustomModal, setIsLoading, setLoadingMessage, setPlaylistName, setPlaylist, setScreen, getSpotifyUserTopItems, callGeminiAPI, getSpotifyRecommendations]);
+  }, [spotifyAccessToken, spotifyUserId, selectedScene, selectedGenres, customMood, discoveryPreference, showCustomModal, setIsLoading, setLoadingMessage, setPlaylistName, setPlaylist, setScreen, getSpotifyUserTopItems, callGeminiAPI, getSpotifyRecommendations, spotifyAvailableGenres]);
 
   const handleSaveToSpotify = useCallback(async () => {
     // This functionality is currently paused as per user request.
@@ -1091,7 +1158,7 @@ const App = () => {
 
       {/* Version Text at the very bottom of the app */}
       {screen === 'welcome' && (
-        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.12</p>
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.17</p>
       )}
     </div>
   );
