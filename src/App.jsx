@@ -7,9 +7,14 @@ import { XMarkIcon, ArrowUturnLeftIcon, PlayIcon, SparklesIcon, CheckCircleIcon,
 // Set to 'false' for actual Spotify OAuth flow.
 const USE_DEV_SPOTIFY_TOKEN_MODE = false; 
 
-// PASTE YOUR SPOTIFY ACCESS TOKEN HERE FOR DEV_TESTING_MODE
-// You can get this from your browser's developer tools (Network tab) after a successful Spotify login.
-const SPOTIFY_DEV_ACCESS_TOKEN = 'YOUR_SPOTIFY_DEV_ACCESS_TOKEN_HERE'; 
+// IMPORTANT: PASTE YOUR SPOTIFY ACCESS TOKEN HERE FOR DEV_TESTING_MODE
+// How to get your token: 
+// 1. Log in to Spotify via the app once (regular flow).
+// 2. Open browser developer tools (F12 / Cmd+Option+I).
+// 3. Go to the 'Network' tab.
+// 4. Look for a request to 'https://api.spotify.com/v1/me' or 'https://accounts.spotify.com/api/token'.
+// 5. In the 'Headers' or 'Response' tab for that request, find and copy the 'access_token' (a long string).
+const SPOTIFY_DEV_ACCESS_TOKEN = 'PASTE_YOUR_SPOTIFY_ACCESS_TOKEN_HERE'; 
 // Example: 'BQB7uR... (your long token)'
 
 // --- General UI Styling Classes (Defined outside App component for consistent scope) ---
@@ -318,7 +323,7 @@ const App = () => {
 
   // --- Spotify Authentication Logic (Authorization Code Flow with PKCE) ---
   const handleSpotifyConnect = useCallback(async () => {
-    if (USE_DEV_SPOTIFY_TOKEN_MODE && SPOTIFY_DEV_ACCESS_TOKEN && SPOTIFY_DEV_ACCESS_TOKEN !== 'YOUR_SPOTIFY_DEV_ACCESS_TOKEN_HERE') {
+    if (USE_DEV_SPOTIFY_TOKEN_MODE && SPOTIFY_DEV_ACCESS_TOKEN && SPOTIFY_DEV_ACCESS_TOKEN !== 'PASTE_YOUR_SPOTIFY_ACCESS_TOKEN_HERE') {
       setIsLoading(true);
       setLoadingMessage('Using developer access token...');
       try {
@@ -572,16 +577,16 @@ const App = () => {
             }
         }
     };
-    // PASTE YOUR GEMINI API KEY HERE.
-    // This will bypass Canvas environment's automatic injection if it's not working.
+    // IMPORTANT: PASTE YOUR GEMINI API KEY HERE.
+    // This will ensure the API key is present and bypass Canvas environment's automatic injection if it's not working.
     // Example: 'AIzaSyC...'
-    const apiKey = ""; 
+    const apiKey = ""; // <--- PASTE YOUR GEMINI API KEY HERE!
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; 
 
     console.log("Gemini API Key before fetch:", apiKey); // DEBUG: Log API key value
 
     try {
-        if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE" || apiKey === "") {
+        if (!apiKey || apiKey === "PASTE_YOUR_GEMINI_API_KEY_HERE" || apiKey === "") {
             throw new Error("Gemini API Key is not configured. Please paste your API key in App.jsx.");
         }
 
