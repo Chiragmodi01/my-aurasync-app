@@ -444,7 +444,7 @@ const App = () => {
     const container = cardContainerRef.current;
     const scrollLeft = container.scrollLeft;
     // Calculate card width including margin for accurate indexing
-    const cardWidthWithMargin = 250 + 20; // Card width (250px) + marginRight (20px)
+    const cardWidthWithMargin = 250 + 32; // Card width (250px) + gap-x-8 (32px)
     const newIndex = Math.round(scrollLeft / cardWidthWithMargin);
     if (newIndex !== currentCardIndex) {
       setCurrentCardIndex(newIndex);
@@ -782,210 +782,217 @@ const App = () => {
 
       {/* --- Scene Selection Screen --- */}
       {screen === 'scene-selection' && (
-        <div className="flex flex-col items-center justify-center w-full h-full relative z-10 p-4 pt-16 pb-8"> {/* Added pt-16 pb-8 for header/footer spacing */}
-          <h2 className="text-4xl font-bold text-center mb-8 text-gray-100 drop-shadow-lg">
-            Set Your Scene.
-          </h2>
+        <div className="flex flex-col w-full h-full relative z-10 pt-16 pb-8"> {/* Main screen container, no direct centering here */}
+          {/* Main Content Wrapper - takes remaining space and centers its content */}
+          <div className="flex-grow flex flex-col items-center justify-center p-4"> {/* Add padding here */}
+            <h2 className="text-4xl font-bold text-center mb-8 text-gray-100 drop-shadow-lg">
+              Set Your Scene.
+            </h2>
 
-          {/* Scene Cards Container (Swiping/Scrolling) */}
-          <div
-            ref={cardContainerRef}
-            className={`relative w-full max-w-md h-[400px] flex items-center
-              ${isTouchDevice ? 'overflow-hidden justify-center' : 'overflow-x-auto whitespace-nowrap scrollbar-hide'}`} /* Conditional classes */
-            onScroll={isTouchDevice ? undefined : handleScroll} /* Only for non-touch devices */
-          >
-            {SCENES.map((scene, index) => {
-              const isActive = index === currentCardIndex;
-              const offset = index - currentCardIndex;
+            {/* Scene Cards Container (Swiping/Scrolling) */}
+            <div
+              ref={cardContainerRef}
+              className={`relative w-full max-w-md h-[450px] min-h-[400px] flex items-center
+                ${isTouchDevice ? 'overflow-hidden justify-center' : 'overflow-x-auto whitespace-nowrap scrollbar-hide gap-x-8'}`} /* Conditional classes, increased width, added gap-x-8 */
+              onScroll={isTouchDevice ? undefined : handleScroll} /* Only for non-touch devices */
+            >
+              {SCENES.map((scene, index) => {
+                const isActive = index === currentCardIndex;
+                const offset = index - currentCardIndex;
 
-              const transformStyle = isTouchDevice ? {
-                // Touch device: stacking and swiping
-                transform: `translateX(calc(-50% + ${currentTranslateX}px)) scale(${1 - Math.abs(offset) * 0.05})`,
-                opacity: 1 - Math.abs(offset) * 0.1,
-                zIndex: 100 - Math.abs(offset),
-                transition: isDragging ? 'none' : 'transform 0.2s ease-out, opacity 0.2s ease-out',
-                left: '50%',
-                position: 'absolute', // Keep absolute for stacking
-              } : {
-                // Non-touch device: horizontal layout, no stacking
-                transform: `scale(${isActive ? 1.2 : 1})`, // Scale active card
-                transition: 'transform 0.2s ease-out',
-                display: 'inline-block', // For horizontal alignment
-                marginRight: '20px', // Spacing between cards
-                flexShrink: 0, // Prevent shrinking in flex container
-                verticalAlign: 'middle', // Align cards vertically in the middle of the flex item
-              };
+                const transformStyle = isTouchDevice ? {
+                  // Touch device: stacking and swiping
+                  transform: `translateX(calc(-50% + ${currentTranslateX}px)) scale(${1 - Math.abs(offset) * 0.05})`,
+                  opacity: 1 - Math.abs(offset) * 0.1,
+                  zIndex: 100 - Math.abs(offset),
+                  transition: isDragging ? 'none' : 'transform 0.2s ease-out, opacity 0.2s ease-out',
+                  left: '50%',
+                  position: 'absolute', // Keep absolute for stacking
+                } : {
+                  // Non-touch device: horizontal layout, no stacking
+                  transform: `scale(${isActive ? 1.2 : 1})`, // Scale active card
+                  transition: 'transform 0.2s ease-out',
+                  flexShrink: 0, // Prevent shrinking in flex container
+                  verticalAlign: 'middle', // Align cards vertically in the middle of the flex item
+                };
 
-              return (
-                <div
-                  key={scene.name}
-                  className={`
-                    w-[250px] h-[350px] rounded-lg overflow-hidden
-                    shadow-xl shadow-black/50 border-2 border-rose-600
-                    flex flex-col justify-end items-center p-4
-                    cursor-grab select-none
-                  `}
-                  style={transformStyle}
-                  // Conditionally apply touch handlers only to the currently active card on touch devices
-                  {...(isTouchDevice && isActive ? { onTouchStart, onTouchMove, onTouchEnd } : {})}
-                >
-                  <img
-                    src={scene.image}
-                    alt={scene.name}
-                    className="w-full h-full object-cover absolute inset-0 rounded-lg"
-                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/800x1200/333/FFF?text=SCENE'; }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 rounded-lg flex items-end p-4">
-                    <h3 className="text-4xl font-bold text-white drop-shadow-lg">{scene.name}</h3>
+                return (
+                  <div
+                    key={scene.name}
+                    className={`
+                      w-[250px] h-[350px] rounded-lg overflow-hidden
+                      shadow-xl shadow-black/50 border-2 border-rose-600
+                      flex flex-col justify-end items-center p-4
+                      cursor-grab select-none
+                    `}
+                    style={transformStyle}
+                    // Conditionally apply touch handlers only to the currently active card on touch devices
+                    {...(isTouchDevice && isActive ? { onTouchStart, onTouchMove, onTouchEnd } : {})}
+                  >
+                    <img
+                      src={scene.image}
+                      alt={scene.name}
+                      className="w-full h-full object-cover absolute inset-0 rounded-lg"
+                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/800x1200/333/FFF?text=SCENE'; }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 rounded-lg flex items-end p-4">
+                      <h3 className="text-4xl font-bold text-white drop-shadow-lg">{scene.name}</h3>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <p className="text-gray-400 text-sm mt-4 mb-8">
+              {isTouchDevice ? 'Swipe cards to find your perfect scene.' : 'Scroll cards to find your perfect scene.'}
+            </p>
+            <button
+              onClick={handleSelectScene}
+              className={[BUTTON_CLASSES, PRIMARY_RED_CLASSES, 'max-w-md'].filter(Boolean).join(' ')} // Fixed syntax error
+            >
+              Select This Scene
+            </button>
           </div>
-          <p className="text-gray-400 text-sm mt-4 mb-8">
-            {isTouchDevice ? 'Swipe cards to find your perfect scene.' : 'Scroll cards to find your perfect scene.'}
-          </p>
-          <button
-            onClick={handleSelectScene}
-            className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES}`}
-          >
-            Select This Scene
-          </button>
         </div>
       )}
 
       {/* --- Genre Selection Screen --- */}
       {screen === 'genre-selection' && selectedScene && (
-        <div className={`flex flex-col items-center justify-center w-full h-full relative z-10 p-4 pt-16 pb-8`}> {/* Full screen, vertically centered */}
-          <div className={`${CARD_CLASSES} flex flex-col items-center justify-center`}> {/* Card content */}
-            <h2 className="text-3xl font-bold text-center mb-6 text-gray-100">
-              What's Your Flavor for <span className="text-rose-400">{selectedScene.name}</span>?
-            </h2>
+        <div className={`flex flex-col w-full h-full relative z-10 pt-16 pb-8`}> {/* Main screen container */}
+          {/* Main Content Wrapper - takes remaining space and centers its content */}
+          <div className="flex-grow flex flex-col items-center justify-center p-4"> {/* Add padding here */}
+            <div className={`${CARD_CLASSES} flex flex-col items-center justify-center`}> {/* Card content */}
+              <h2 className="text-3xl font-bold text-center mb-6 text-gray-100">
+                What's Your Flavor for <span className="text-rose-400">{selectedScene.name}</span>?
+              </h2>
 
-            {/* Genre Pills */}
-            <div className="flex flex-wrap justify-center gap-3 mb-6">
-              {selectedScene.defaultGenres.map((genre) => (
-                <button
-                  key={genre}
-                  onClick={() => setSelectedGenres(prev =>
-                    prev.includes(genre)
-                      ? prev.filter(g => g !== genre)
-                      : [...prev, genre]
-                  )}
-                  className={`
-                    py-2 px-4 rounded-full text-sm font-semibold transition-all duration-200
-                    border-2
-                    ${selectedGenres.includes(genre)
-                      ? `${PRIMARY_RED_CLASSES} text-white border-rose-600 shadow-lg`
-                      : `${SECONDARY_YELLOW_CLASSES} text-black border-amber-300 shadow-md`
-                    }
-                  `}
-                >
-                  {genre}
-                </button>
-              ))}
-            </div>
-
-            {/* Custom Mood Input */}
-            <div className="mb-6 w-full">
-              <label htmlFor="custom-mood" className="block text-gray-300 text-sm font-medium mb-2">
-                Or describe your unique situation...
-              </label>
-              <textarea
-                id="custom-mood"
-                rows="3"
-                className={`${INPUT_CLASSES} resize-none`}
-                placeholder="Describe your unique situation, how long it lasts, what changes, and what kind of music you need throughout..."
-                value={customMood}
-                onChange={(e) => setCustomMood(e.target.value)}
-              ></textarea>
-            </div>
-
-            {/* Discovery Slider */}
-            <div className="mb-8 w-full">
-              <label htmlFor="discovery-slider" className="block text-gray-300 text-sm font-medium mb-2">
-                Discovery Preference: <span className="font-bold text-rose-300">{discoveryPreference}% New Beats</span>
-              </label>
-              <input
-                id="discovery-slider"
-                type="range"
-                min="0"
-                max="100"
-                value={discoveryPreference}
-                onChange={(e) => setDiscoveryPreference(Number(e.target.value))}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-rose-500"
-              />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>Familiar</span>
-                <span>New Beats</span>
+              {/* Genre Pills */}
+              <div className="flex flex-wrap justify-center gap-3 mb-6">
+                {selectedScene.defaultGenres.map((genre) => (
+                  <button
+                    key={genre}
+                    onClick={() => setSelectedGenres(prev =>
+                      prev.includes(genre)
+                        ? prev.filter(g => g !== genre)
+                        : [...prev, genre]
+                    )}
+                    className={`
+                      py-2 px-4 rounded-full text-sm font-semibold transition-all duration-200
+                      border-2
+                      ${selectedGenres.includes(genre)
+                        ? `${PRIMARY_RED_CLASSES} text-white border-rose-600 shadow-lg`
+                        : `${SECONDARY_YELLOW_CLASSES} text-black border-amber-300 shadow-md`
+                      }
+                    `}
+                  >
+                    {genre}
+                  </button>
+                ))}
               </div>
-            </div>
 
-            {/* Generate Playlist Button */}
-            <button
-              onClick={handleGeneratePlaylist}
-              className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} ${selectedGenres.length === 0 && !customMood ? 'opacity-50 cursor-not-allowed shadow-none' : ''}`}
-              disabled={selectedGenres.length === 0 && !customMood}
-            >
-              Forge My Aura
-            </button>
+              {/* Custom Mood Input */}
+              <div className="mb-6 w-full">
+                <label htmlFor="custom-mood" className="block text-gray-300 text-sm font-medium mb-2">
+                  Or describe your unique situation...
+                </label>
+                <textarea
+                  id="custom-mood"
+                  rows="3"
+                  className={`${INPUT_CLASSES} resize-none`}
+                  placeholder="Describe your unique situation, how long it lasts, what changes, and what kind of music you need throughout..."
+                  value={customMood}
+                  onChange={(e) => setCustomMood(e.target.value)}
+                ></textarea>
+              </div>
+
+              {/* Discovery Slider */}
+              <div className="mb-8 w-full">
+                <label htmlFor="discovery-slider" className="block text-gray-300 text-sm font-medium mb-2">
+                  Discovery Preference: <span className="font-bold text-rose-300">{discoveryPreference}% New Beats</span>
+                </label>
+                <input
+                  id="discovery-slider"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={discoveryPreference}
+                  onChange={(e) => setDiscoveryPreference(Number(e.target.value))}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>Familiar</span>
+                  <span>New Beats</span>
+                </div>
+              </div>
+
+              {/* Generate Playlist Button */}
+              <button
+                onClick={handleGeneratePlaylist}
+                className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} ${selectedGenres.length === 0 && !customMood ? 'opacity-50 cursor-not-allowed shadow-none' : ''}`}
+                disabled={selectedGenres.length === 0 && !customMood}
+              >
+                Forge My Aura
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* --- Playlist Display Screen --- */}
       {screen === 'playlist-display' && (
-        <div className={`flex flex-col items-center justify-center w-full h-full relative z-10 p-4 pt-16 pb-8`}> {/* Full screen, vertically centered */}
-          <div className={`${CARD_CLASSES} min-h-[60vh] flex flex-col`}> {/* Card content */}
-            <h2 className="text-3xl font-bold text-center mb-6 text-gray-100">
-              {playlistName || `AuraSync: Your ${selectedScene?.name || 'Custom'} Pulse`}
-            </h2>
+        <div className={`flex flex-col w-full h-full relative z-10 p-4 pt-16 pb-8`}> {/* Main screen container */}
+          {/* Main Content Wrapper - takes remaining space and centers its content */}
+          <div className="flex-grow flex flex-col items-center justify-center p-4"> {/* Add padding here */}
+            <div className={`${CARD_CLASSES} min-h-[60vh] flex flex-col`}> {/* Card content */}
+              <h2 className="text-3xl font-bold text-center mb-6 text-gray-100">
+                {playlistName || `AuraSync: Your ${selectedScene?.name || 'Custom'} Pulse`}
+              </h2>
 
-            {/* Playlist Hero Section */}
-            <div className="relative w-48 h-48 mx-auto mb-6 rounded-xl overflow-hidden shadow-xl border-2 border-rose-600">
-              <img
-                src={playlist[0]?.albumArt || 'https://placehold.co/192x192/000/FFF?text=AuraSync'}
-                alt="Playlist Cover"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity duration-300">
-                <button className="p-3 rounded-full bg-rose-600 text-white shadow-lg">
-                  <PlayIcon className="h-8 w-8" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-grow max-h-80 overflow-y-auto mb-6 pr-2 scrollbar-hide">
-              {playlist.map((song) => (
-                <div key={song.id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-900 transition-colors duration-200 mb-2 border border-gray-800">
-                  <img src={song.albumArt} alt="Album Art" className="w-14 h-14 rounded-md shadow-sm" />
-                  <div className="flex-grow">
-                    <p className="text-lg font-semibold text-gray-100">{song.title}</p>
-                    <p className="text-sm text-gray-400">{song.artist}</p>
-                  </div>
-                  {song.isNew && (
-                    <SparklesIcon className="h-5 w-5 text-amber-300" title="New Discovery" />
-                  )}
-                  <button className="text-rose-400 hover:text-rose-300 transition-colors duration-200">
-                    <PlayIcon className="h-6 w-6" />
+              {/* Playlist Hero Section */}
+              <div className="relative w-48 h-48 mx-auto mb-6 rounded-xl overflow-hidden shadow-xl border-2 border-rose-600">
+                <img
+                  src={playlist[0]?.albumArt || 'https://placehold.co/192x192/000/FFF?text=AuraSync'}
+                  alt="Playlist Cover"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity duration-300">
+                  <button className="p-3 rounded-full bg-rose-600 text-white shadow-lg">
+                    <PlayIcon className="h-8 w-8" />
                   </button>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <div className="space-y-3 mt-auto"> {/* mt-auto pushes buttons to bottom */}
-              <button
-                onClick={handleSaveToSpotify}
-                className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES}`}
-              >
-                Save to Spotify
-              </button>
-              <button
-                onClick={() => setScreen('genre-selection')} // Go back to main curation for refinement
-                className={`${BUTTON_CLASSES} ${ACCENT_BLACK_CLASSES}`}
-              >
-                Refine Playlist
-              </button>
+              <div className="flex-grow max-h-80 overflow-y-auto mb-6 pr-2 scrollbar-hide">
+                {playlist.map((song) => (
+                  <div key={song.id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-900 transition-colors duration-200 mb-2 border border-gray-800">
+                    <img src={song.albumArt} alt="Album Art" className="w-14 h-14 rounded-md shadow-sm" />
+                    <div className="flex-grow">
+                      <p className="text-lg font-semibold text-gray-100">{song.title}</p>
+                      <p className="text-sm text-gray-400">{song.artist}</p>
+                    </div>
+                    {song.isNew && (
+                      <SparklesIcon className="h-5 w-5 text-amber-300" title="New Discovery" />
+                    )}
+                    <button className="text-rose-400 hover:text-rose-300 transition-colors duration-200">
+                      <PlayIcon className="h-6 w-6" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-3 mt-auto"> {/* mt-auto pushes buttons to bottom */}
+                <button
+                  onClick={handleSaveToSpotify}
+                  className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES}`}
+                >
+                  Save to Spotify
+                </button>
+                <button
+                  onClick={() => setScreen('genre-selection')} // Go back to main curation for refinement
+                  className={`${BUTTON_CLASSES} ${ACCENT_BLACK_CLASSES}`}
+                >
+                  Refine Playlist
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -993,7 +1000,7 @@ const App = () => {
 
       {/* Version Text at the very bottom of the app */}
       {screen === 'welcome' && (
-        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.5</p>
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.6</p>
       )}
     </div>
   );
