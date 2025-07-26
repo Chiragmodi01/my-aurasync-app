@@ -2,11 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 // Import Heroicons for a sleek look
 import { XMarkIcon, ArrowUturnLeftIcon, PlayIcon, SparklesIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'; // Outline style for minimalist look
 
-// --- Spotify Authentication Mode ---
-// Set to 'true' for local testing (simulated login to bypass blob: URL issues)
-// Set to 'false' for Vercel deployment (enables actual Spotify OAuth Implicit Grant Flow)
-const USE_MOCK_SPOTIFY_AUTH = false; 
-
 // --- General UI Styling Classes (Defined outside App component for consistent scope) ---
 const APP_CONTAINER_CLASSES = `
   min-h-screen bg-black text-white font-rajdhani flex flex-col items-center justify-start p-4
@@ -112,17 +107,47 @@ const App = () => {
     setModalMessage('');
   }, []);
 
+  // Function to generate a random string for PKCE
+  const generateRandomString = (length) => {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < length; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+  };
+
+  // Function to base64url encode a buffer
+  const base64urlencode = (input) => {
+    return btoa(String.fromCharCode(...new Uint8Array(input)))
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+  };
+
+  // Function to generate a code challenge from a code verifier
+  const generateCodeChallenge = async (codeVerifier) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await window.crypto.subtle.digest('SHA-256', data);
+    return base64urlencode(digest);
+  };
+
+
   // --- Spotify API Calls (These functions need to be defined before they are used in useEffect) ---
   const getSpotifyUserProfile = useCallback(async (token) => {
     try {
       const response = await fetch('https://api.spotify.com/v1/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error(`Spotify API error: ${response.statusText} - ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+      }
       return await response.json();
     } catch (error) {
       console.error('Error fetching Spotify user profile:', error);
-      showCustomModal('Failed to fetch Spotify profile. Is your access token valid?', 'error');
+      showCustomModal(`Failed to fetch Spotify profile: ${error.message}. Is your access token valid?`, 'error');
       throw error;
     }
   }, [showCustomModal]);
@@ -132,11 +157,14 @@ const App = () => {
       const response = await fetch(`https://api.spotify.com/v1/me/top/${type}?limit=${limit}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error(`Spotify API error: ${response.statusText} - ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+      }
       return await response.json();
     } catch (error) {
       console.error(`Error fetching Spotify top ${type}:`, error);
-      showCustomModal(`Failed to fetch Spotify top ${type}. Is your access token valid?`, 'error');
+      showCustomModal(`Failed to fetch Spotify top ${type}: ${error.message}. Is your access token valid?`, 'error');
       return { items: [] };
     }
   }, [showCustomModal]);
@@ -153,11 +181,14 @@ const App = () => {
       const response = await fetch(`https://api.spotify.com/v1/recommendations?${queryParams.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error(`Spotify API error: ${response.statusText} - ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+      }
       return await response.json();
     } catch (error) {
       console.error('Error fetching Spotify recommendations:', error);
-      showCustomModal('Failed to fetch Spotify recommendations. Check console for details.', 'error');
+      showCustomModal(`Failed to fetch Spotify recommendations: ${error.message}. Check console for details.`, 'error');
       throw error;
     }
   }, [showCustomModal]);
@@ -176,11 +207,14 @@ const App = () => {
           public: isPublic
         })
       });
-      if (!response.ok) throw new Error(`Spotify API error: ${response.statusText} - ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+      }
       return await response.json();
     } catch (error) {
       console.error('Error creating Spotify playlist:', error);
-      showCustomModal('Failed to create Spotify playlist. Check console for details.', 'error');
+      showCustomModal(`Failed to create Spotify playlist: ${error.message}. Check console for details.`, 'error');
       throw error;
     }
   }, [showCustomModal]);
@@ -197,90 +231,113 @@ const App = () => {
           uris: trackUris
         })
       });
-      if (!response.ok) throw new Error(`Spotify API error: ${response.statusText} - ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Spotify API error: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+      }
       return await response.json();
     } catch (error) {
       console.error('Error adding tracks to playlist:', error);
-      showCustomModal('Failed to add tracks to playlist. Check console for details.', 'error');
+      showCustomModal(`Failed to add tracks to playlist: ${error.message}. Check console for details.`, 'error');
       throw error;
     }
   }, [showCustomModal]);
 
 
-  // --- Spotify Authentication Logic (Conditional based on USE_MOCK_SPOTIFY_AUTH) ---
-  const handleSpotifyConnect = useCallback(() => {
-    if (USE_MOCK_SPOTIFY_AUTH) {
-      setLoadingMessage('Simulating Spotify Connection...');
-      setIsLoading(true);
-      setTimeout(() => {
-        // For local testing, replace with a real, temporary token and user ID if you want to test live API calls
-        // IMPORTANT: DO NOT COMMIT REAL TOKENS TO GITHUB!
-        const mockAccessToken = 'YOUR_VALID_SPOTIFY_ACCESS_TOKEN_HERE'; 
-        const mockUserId = 'YOUR_SPOTIFY_USER_ID_HERE'; 
+  // --- Spotify Authentication Logic (Authorization Code Flow with PKCE) ---
+  const handleSpotifyConnect = useCallback(async () => {
+    setIsLoading(true);
+    setLoadingMessage('Initiating Spotify Connection...');
 
-        if (mockAccessToken === 'YOUR_VALID_SPOTIFY_ACCESS_TOKEN_HERE' || mockUserId === 'YOUR_SPOTIFY_USER_ID_HERE') {
-          showCustomModal('For live Spotify API calls on Vercel, please change USE_MOCK_SPOTIFY_AUTH to false and ensure your Spotify Redirect URI is correctly set. For local testing, you can replace the mock tokens in the code with real temporary values.', 'error');
-          setSpotifyAccessToken('MOCK_TOKEN_FOR_DEMO');
-          setSpotifyUserId('MOCK_USER_ID');
-        } else {
-          setSpotifyAccessToken(mockAccessToken);
-          setSpotifyUserId(mockUserId);
-        }
+    try {
+      const codeVerifier = generateRandomString(128);
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-        setIsAuthenticated(true);
-        setScreen('scene-selection'); // Go to the scene selection screen
-        setIsLoading(false);
-        setLoadingMessage('');
-        console.log('Simulated Spotify Connection Successful!');
-      }, 1500);
-    } else {
-      // Actual Spotify OAuth Implicit Grant Flow for Vercel deployment
+      sessionStorage.setItem('spotify_code_verifier', codeVerifier);
+
       const authUrl = `https://accounts.spotify.com/authorize?` +
         `client_id=${SPOTIFY_CLIENT_ID}` +
-        `&response_type=token` + // 'token' for Implicit Grant Flow
+        `&response_type=code` + // Requesting authorization code
         `&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}` +
         `&scope=${encodeURIComponent(SPOTIFY_SCOPES)}` +
-        `&show_dialog=true`;
+        `&code_challenge_method=S256` + // PKCE method
+        `&code_challenge=${codeChallenge}`;
+      
       window.location.href = authUrl; // Redirect user to Spotify for authorization
+    } catch (error) {
+      console.error('Error initiating Spotify login:', error);
+      showCustomModal(`Failed to initiate Spotify login: ${error.message}. Please try again.`, 'error');
+      setIsLoading(false);
+      setLoadingMessage('');
     }
-  }, [setIsLoading, setIsAuthenticated, setScreen, setLoadingMessage, setSpotifyAccessToken, setSpotifyUserId, showCustomModal, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES]);
+  }, [setIsLoading, setLoadingMessage, showCustomModal, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES]);
 
-  // Effect to handle Spotify OAuth callback when not mocking
+  // Effect to handle Spotify OAuth callback (PKCE)
   useEffect(() => {
-    if (!USE_MOCK_SPOTIFY_AUTH) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const error = urlParams.get('error');
+
+    // Only proceed if there's a code or an error in the URL parameters
+    if (code || error) {
       const handleSpotifyCallback = async () => {
         console.log('--- Spotify Callback Handler Initiated ---');
-        console.log('window.location.hash before processing:', window.location.hash);
-
-        // Clear the hash immediately to prevent re-triggering on subsequent loads
-        // This is crucial for preventing the modal from showing on initial load if hash persists
-        window.history.replaceState({}, document.title, window.location.pathname); 
-
-        const hashParams = new URLSearchParams(window.location.hash.substring(1)); // Parse hash fragment
-        const token = hashParams.get('access_token');
-        const error = hashParams.get('error');
-
-        console.log('Extracted token:', token ? 'Token present' : 'Token missing');
+        console.log('window.location.search:', window.location.search);
+        console.log('Extracted code:', code ? 'Code present' : 'Code missing');
         console.log('Extracted error:', error || 'No error');
 
+        // Clear URL parameters AFTER reading them
+        window.history.replaceState({}, document.title, window.location.pathname); 
+
         if (error) {
-          console.error('Spotify Auth Error:', error);
-          showCustomModal(`Spotify authentication failed: ${error}. Please try again.`, 'error'); // More specific error message
+          console.error('Spotify Auth Error (URL parameter):', error);
+          showCustomModal(`Spotify authentication failed: ${error}. Please try again.`, 'error');
           setIsAuthenticated(false);
           setScreen('welcome');
+          sessionStorage.removeItem('spotify_code_verifier'); // Clean up
           return;
         }
 
-        if (token) {
-          setLoadingMessage('Connecting to Spotify...');
+        if (code) {
+          const codeVerifier = sessionStorage.getItem('spotify_code_verifier');
+          if (!codeVerifier) {
+            console.error('Spotify Auth Error: No code_verifier found in session storage.');
+            showCustomModal('Spotify authentication failed: Missing security credentials. Please try again.', 'error');
+            setIsAuthenticated(false);
+            setScreen('welcome');
+            return;
+          }
+
+          setLoadingMessage('Exchanging authorization code...');
           setIsLoading(true);
-          setSpotifyAccessToken(token);
-          setIsAuthenticated(true);
-          console.log('Spotify Access Token received (Implicit Grant)!');
 
           try {
-            console.log('Attempting to fetch user profile with token...');
-            const userProfile = await getSpotifyUserProfile(token);
+            const response = await fetch('https://accounts.spotify.com/api/token', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: SPOTIFY_REDIRECT_URI,
+                client_id: SPOTIFY_CLIENT_ID,
+                code_verifier: codeVerifier,
+              }).toString(),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(`Token exchange failed: ${response.statusText} - ${response.status} - ${errorData.error_description || errorData.error}`);
+            }
+
+            const data = await response.json();
+            setSpotifyAccessToken(data.access_token);
+            setIsAuthenticated(true);
+            console.log('Spotify Access Token received (PKCE)!');
+
+            // Fetch user profile
+            const userProfile = await getSpotifyUserProfile(data.access_token);
             if (userProfile && userProfile.id) {
               setSpotifyUserId(userProfile.id);
               console.log('Spotify User ID:', userProfile.id);
@@ -288,33 +345,22 @@ const App = () => {
             } else {
               throw new Error('Could not retrieve Spotify user ID from profile data.');
             }
+
           } catch (err) {
-            console.error('Failed to get Spotify user profile:', err);
-            showCustomModal(`Failed to get Spotify user profile: ${err.message}. Please try again.`, 'error'); // More specific error message
+            console.error('Error during token exchange or profile fetch:', err);
+            showCustomModal(`Spotify login failed: ${err.message}. Please try again.`, 'error');
             setIsAuthenticated(false);
             setScreen('welcome');
           } finally {
             setIsLoading(false);
             setLoadingMessage('');
+            sessionStorage.removeItem('spotify_code_verifier'); // Clean up
           }
-        } else {
-            // This case should ideally not happen if redirect is correct and no error, but good for debugging
-            // Only show modal if there was a hash, but no token/error explicitly found
-            if (window.location.hash.length > 1) { // Check if there was any hash at all
-                console.warn('Spotify callback: No access token and no explicit error found in hash, despite hash being present.');
-                showCustomModal('Spotify authentication failed: No access token received. Please try again.', 'error');
-            }
-            setIsAuthenticated(false);
-            setScreen('welcome');
         }
       };
-
-      // Only run the callback handler if there's a hash to process
-      if (window.location.hash.length > 1) {
-          handleSpotifyCallback();
-      }
+      handleSpotifyCallback();
     }
-  }, [USE_MOCK_SPOTIFY_AUTH, getSpotifyUserProfile, showCustomModal, setIsLoading, setIsAuthenticated, setScreen, setLoadingMessage, setSpotifyAccessToken, setSpotifyUserId]);
+  }, [getSpotifyUserProfile, showCustomModal, setIsLoading, setIsAuthenticated, setScreen, setLoadingMessage, setSpotifyAccessToken, setSpotifyUserId, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI]);
 
 
   // --- Card Swiping Logic ---
