@@ -249,16 +249,25 @@ const App = () => {
   useEffect(() => {
     if (!USE_MOCK_SPOTIFY_AUTH) {
       const handleSpotifyCallback = async () => {
+        console.log('--- Spotify Callback Handler Initiated ---');
+        console.log('window.location.hash before processing:', window.location.hash);
+
+        // Clear the hash immediately to prevent re-triggering on subsequent loads
+        // This is crucial for preventing the modal from showing on initial load if hash persists
+        window.history.replaceState({}, document.title, window.location.pathname); 
+
         const hashParams = new URLSearchParams(window.location.hash.substring(1)); // Parse hash fragment
         const token = hashParams.get('access_token');
         const error = hashParams.get('error');
 
+        console.log('Extracted token:', token ? 'Token present' : 'Token missing');
+        console.log('Extracted error:', error || 'No error');
+
         if (error) {
           console.error('Spotify Auth Error:', error);
-          showCustomModal('Spotify authentication failed. Please try again.', 'error');
+          showCustomModal(`Spotify authentication failed: ${error}. Please try again.`, 'error'); // More specific error message
           setIsAuthenticated(false);
           setScreen('welcome');
-          window.history.replaceState({}, document.title, window.location.pathname); // Clear hash
           return;
         }
 
@@ -270,27 +279,40 @@ const App = () => {
           console.log('Spotify Access Token received (Implicit Grant)!');
 
           try {
+            console.log('Attempting to fetch user profile with token...');
             const userProfile = await getSpotifyUserProfile(token);
             if (userProfile && userProfile.id) {
               setSpotifyUserId(userProfile.id);
               console.log('Spotify User ID:', userProfile.id);
               setScreen('scene-selection');
             } else {
-              throw new Error('Could not retrieve Spotify user ID.');
+              throw new Error('Could not retrieve Spotify user ID from profile data.');
             }
           } catch (err) {
             console.error('Failed to get Spotify user profile:', err);
-            showCustomModal('Failed to get Spotify user profile. Please try again.', 'error');
+            showCustomModal(`Failed to get Spotify user profile: ${err.message}. Please try again.`, 'error'); // More specific error message
             setIsAuthenticated(false);
             setScreen('welcome');
           } finally {
             setIsLoading(false);
             setLoadingMessage('');
-            window.history.replaceState({}, document.title, window.location.pathname); // Clear hash
           }
+        } else {
+            // This case should ideally not happen if redirect is correct and no error, but good for debugging
+            // Only show modal if there was a hash, but no token/error explicitly found
+            if (window.location.hash.length > 1) { // Check if there was any hash at all
+                console.warn('Spotify callback: No access token and no explicit error found in hash, despite hash being present.');
+                showCustomModal('Spotify authentication failed: No access token received. Please try again.', 'error');
+            }
+            setIsAuthenticated(false);
+            setScreen('welcome');
         }
       };
-      handleSpotifyCallback();
+
+      // Only run the callback handler if there's a hash to process
+      if (window.location.hash.length > 1) {
+          handleSpotifyCallback();
+      }
     }
   }, [USE_MOCK_SPOTIFY_AUTH, getSpotifyUserProfile, showCustomModal, setIsLoading, setIsAuthenticated, setScreen, setLoadingMessage, setSpotifyAccessToken, setSpotifyUserId]);
 
