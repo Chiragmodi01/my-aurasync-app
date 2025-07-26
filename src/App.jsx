@@ -117,7 +117,7 @@ const App = () => {
   const generateRandomString = (length) => {
     let text = '';
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < length; i++) { // CORRECTED LOOP CONDITION
+    for (let i = 0; i < length; i++) {
       text += possible.charAt(Math.floor(Math.random() * possible.length));
     }
     return text;
@@ -443,8 +443,9 @@ const App = () => {
     if (isTouchDevice || !cardContainerRef.current) return;
     const container = cardContainerRef.current;
     const scrollLeft = container.scrollLeft;
-    const cardWidth = 250 + 20; // Card width + margin-right
-    const newIndex = Math.round(scrollLeft / cardWidth);
+    // Calculate card width including margin for accurate indexing
+    const cardWidthWithMargin = 250 + 20; // Card width (250px) + marginRight (20px)
+    const newIndex = Math.round(scrollLeft / cardWidthWithMargin);
     if (newIndex !== currentCardIndex) {
       setCurrentCardIndex(newIndex);
     }
@@ -709,31 +710,50 @@ const App = () => {
         </div>
       )}
 
-      {/* User Profile Icon and Dropdown */}
+      {/* Top Header Bar for Scene Selection, Genre Selection, Playlist Display */}
       {isAuthenticated && screen !== 'welcome' && (
-        <div className="absolute top-4 right-4 z-30">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center space-x-2 p-2 rounded-full bg-black bg-opacity-50 hover:bg-opacity-70 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
-            title="User Menu"
-          >
-            {userProfileImage ? (
-              <img src={userProfileImage} alt="User Profile" className="h-8 w-8 rounded-full object-cover" />
-            ) : (
-              <UserCircleIcon className="h-8 w-8 text-gray-300" />
-            )}
-            <span className="text-gray-200 text-sm font-semibold hidden sm:inline">{userDisplayName}</span>
-          </button>
-          {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-gray-900 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
-              <button
-                onClick={handleLogout}
-                className="block w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-gray-800"
-              >
-                Logout
-              </button>
-            </div>
+        <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-20">
+          {/* Back Button (Left) */}
+          {screen !== 'scene-selection' && ( // Only show back button if not on the first content screen
+            <button
+              onClick={() => {
+                if (screen === 'genre-selection') setScreen('scene-selection');
+                if (screen === 'playlist-display') setScreen('genre-selection');
+              }}
+              className={`p-2 rounded-full ${ACCENT_BLACK_CLASSES} focus:ring-rose-500`}
+              title="Back"
+            >
+              <ArrowUturnLeftIcon className="h-6 w-6" />
+            </button>
           )}
+          {/* Placeholder to balance space if back button is not present */}
+          {screen === 'scene-selection' && <div className="w-10 h-10"></div>} {/* Adjust size as needed */}
+
+          {/* User Profile Icon and Dropdown (Right) */}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center space-x-2 p-2 rounded-full bg-black bg-opacity-50 hover:bg-opacity-70 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              title="User Menu"
+            >
+              {userProfileImage ? (
+                <img src={userProfileImage} alt="User Profile" className="h-8 w-8 rounded-full object-cover" />
+              ) : (
+                <UserCircleIcon className="h-8 w-8 text-gray-300" />
+              )}
+              <span className="text-gray-200 text-sm font-semibold hidden sm:inline">{userDisplayName}</span>
+            </button>
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-gray-900 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <button
+                  onClick={handleLogout}
+                  className="block w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-gray-800"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -770,8 +790,8 @@ const App = () => {
           {/* Scene Cards Container (Swiping/Scrolling) */}
           <div
             ref={cardContainerRef}
-            className={`relative w-full max-w-sm h-[400px] flex items-center justify-center
-              ${isTouchDevice ? 'overflow-hidden' : 'overflow-x-auto whitespace-nowrap scrollbar-hide'}`} /* Conditional classes */
+            className={`relative w-full max-w-md h-[400px] flex items-center
+              ${isTouchDevice ? 'overflow-hidden justify-center' : 'overflow-x-auto whitespace-nowrap scrollbar-hide'}`} /* Conditional classes */
             onScroll={isTouchDevice ? undefined : handleScroll} /* Only for non-touch devices */
           >
             {SCENES.map((scene, index) => {
@@ -837,17 +857,6 @@ const App = () => {
       {/* --- Genre Selection Screen --- */}
       {screen === 'genre-selection' && selectedScene && (
         <div className={`flex flex-col items-center justify-center w-full h-full relative z-10 p-4 pt-16 pb-8`}> {/* Full screen, vertically centered */}
-          {/* Top Navigation */}
-          <div className="absolute top-4 left-4 z-20">
-            <button
-              onClick={() => setScreen('scene-selection')}
-              className={`p-2 rounded-full ${ACCENT_BLACK_CLASSES} focus:ring-rose-500`}
-              title="Back to Scenes"
-            >
-              <ArrowUturnLeftIcon className="h-6 w-6" />
-            </button>
-          </div>
-
           <div className={`${CARD_CLASSES} flex flex-col items-center justify-center`}> {/* Card content */}
             <h2 className="text-3xl font-bold text-center mb-6 text-gray-100">
               What's Your Flavor for <span className="text-rose-400">{selectedScene.name}</span>?
@@ -927,18 +936,6 @@ const App = () => {
       {/* --- Playlist Display Screen --- */}
       {screen === 'playlist-display' && (
         <div className={`flex flex-col items-center justify-center w-full h-full relative z-10 p-4 pt-16 pb-8`}> {/* Full screen, vertically centered */}
-          {/* Top Navigation */}
-          <div className="absolute top-4 left-4 z-20">
-            <button
-              onClick={() => setScreen('genre-selection')} // Go back to main curation screen
-              className={`p-2 rounded-full ${ACCENT_BLACK_CLASSES} focus:ring-rose-500`}
-              title="Back to Curation"
-            >
-              <ArrowUturnLeftIcon className="h-6 w-6" />
-            </button>
-          </div>
-          {/* Logout button is now in the User Profile dropdown */}
-
           <div className={`${CARD_CLASSES} min-h-[60vh] flex flex-col`}> {/* Card content */}
             <h2 className="text-3xl font-bold text-center mb-6 text-gray-100">
               {playlistName || `AuraSync: Your ${selectedScene?.name || 'Custom'} Pulse`}
@@ -996,7 +993,7 @@ const App = () => {
 
       {/* Version Text at the very bottom of the app */}
       {screen === 'welcome' && (
-        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.4</p>
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.5</p>
       )}
     </div>
   );
