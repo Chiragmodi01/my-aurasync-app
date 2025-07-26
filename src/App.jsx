@@ -2,6 +2,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 // Import Heroicons for a sleek look
 import { XMarkIcon, ArrowUturnLeftIcon, PlayIcon, SparklesIcon, CheckCircleIcon, ExclamationCircleIcon, UserCircleIcon } from '@heroicons/react/24/outline'; // Outline style for minimalist look
 
+// --- Spotify Developer Testing Mode ---
+// Set to 'true' to use a hardcoded Spotify access token for quick testing, bypassing OAuth.
+// Set to 'false' for actual Spotify OAuth flow.
+const USE_DEV_SPOTIFY_TOKEN_MODE = false; 
+
+// PASTE YOUR SPOTIFY ACCESS TOKEN HERE FOR DEV_TESTING_MODE
+// You can get this from your browser's developer tools (Network tab) after a successful Spotify login.
+const SPOTIFY_DEV_ACCESS_TOKEN = 'YOUR_SPOTIFY_DEV_ACCESS_TOKEN_HERE'; 
+// Example: 'BQB7uR... (your long token)'
+
 // --- General UI Styling Classes (Defined outside App component for consistent scope) ---
 const APP_CONTAINER_CLASSES = `
   min-h-screen bg-black text-white font-rajdhani flex flex-col items-center justify-start p-4
@@ -67,20 +77,14 @@ const App = () => {
   const [userProfileImage, setUserProfileImage] = useState(null);
   const [screen, setScreen] = useState('welcome'); // 'welcome', 'scene-selection', 'genre-selection', 'playlist-display'
   
-  // For infinite scrolling: clone first/last elements
-  const CLONE_COUNT = 1; // Number of items to clone at each end
-  const originalScenes = SCENES;
-  const displayScenes = [
-    ...originalScenes.slice(-CLONE_COUNT), // Cloned last item(s)
-    ...originalScenes,
-    ...originalScenes.slice(0, CLONE_COUNT) // Cloned first item(s)
-  ];
+  // Use original SCENES directly, no cloning for infinite scroll
+  const displayScenes = SCENES; 
 
-  // Initialize currentCardIndex to select the second original item (index 1 in originalScenes)
-  // which corresponds to index CLONE_COUNT + 1 in displayScenes (1 + 1 = 2)
-  const [currentCardIndex, setCurrentCardIndex] = useState(CLONE_COUNT + 1); 
+  // Initialize currentCardIndex to 0, then set to 1 in useEffect for 2nd card selection
+  const [currentCardIndex, setCurrentCardIndex] = useState(0); 
+  // Initialize selectedScene safely with the first scene
+  const [selectedScene, setSelectedScene] = useState(SCENES[0]); 
 
-  const [selectedScene, setSelectedScene] = useState(displayScenes[currentCardIndex]); // Initialize with the correct scene
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [customMood, setCustomMood] = useState('');
   const [discoveryPreference, setDiscoveryPreference] = useState(50);
@@ -100,17 +104,37 @@ const App = () => {
   const [currentTranslateX, setCurrentTranslateX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const cardContainerRef = useRef(null); // Ref for the container to get its width for swipe threshold
-  const isScrollingProgrammatically = useRef(false); // Flag to prevent infinite loop with onScroll
 
   // Detect if device is touch-enabled
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 
-  // Update selected scene when currentCardIndex changes
+  // Effect to update selectedScene when currentCardIndex changes
   useEffect(() => {
     setSelectedScene(displayScenes[currentCardIndex]);
     setSelectedGenres([]); // Reset genres when scene changes
-  }, [currentCardIndex]); // displayScenes is static, so removed from dependency array
+  }, [currentCardIndex, displayScenes]); 
+
+  // Effect to set initial selected card and scroll position
+  useEffect(() => {
+    if (displayScenes.length > 1) {
+      setCurrentCardIndex(1); // Set to 2nd card (index 1) on initial load
+    }
+  }, [displayScenes]); // Run once on mount, or if displayScenes changes (though it's static)
+
+  // Effect to manage scroll position for centering the selected card on desktop
+  useEffect(() => {
+    if (!cardContainerRef.current || isTouchDevice) return; // Only for desktop scroll
+
+    const container = cardContainerRef.current;
+    const cardWidthWithMargin = 250 + 32; // Card width + gap-x-8
+
+    // Scroll to center the currentCardIndex
+    // Calculate the offset to center the card in the visible area
+    const centerOffset = (container.offsetWidth / 2) - (cardWidthWithMargin / 2);
+    container.scrollLeft = (currentCardIndex * cardWidthWithMargin) - centerOffset;
+
+  }, [currentCardIndex, isTouchDevice]); // Re-run when currentCardIndex changes
 
 
   // --- Utility Functions ---
@@ -294,6 +318,36 @@ const App = () => {
 
   // --- Spotify Authentication Logic (Authorization Code Flow with PKCE) ---
   const handleSpotifyConnect = useCallback(async () => {
+    if (USE_DEV_SPOTIFY_TOKEN_MODE && SPOTIFY_DEV_ACCESS_TOKEN && SPOTIFY_DEV_ACCESS_TOKEN !== 'YOUR_SPOTIFY_DEV_ACCESS_TOKEN_HERE') {
+      setIsLoading(true);
+      setLoadingMessage('Using developer access token...');
+      try {
+        // Simulate successful login with dev token
+        const userProfile = await getSpotifyUserProfile(SPOTIFY_DEV_ACCESS_TOKEN);
+        if (userProfile && userProfile.id) {
+          setSpotifyAccessToken(SPOTIFY_DEV_ACCESS_TOKEN);
+          setIsAuthenticated(true);
+          setSpotifyUserId(userProfile.id);
+          setUserDisplayName(userProfile.display_name || 'Dev User');
+          setUserProfileImage(userProfile.images?.[0]?.url || null);
+          console.log('Developer Spotify Access Token used successfully!');
+          setScreen('scene-selection');
+        } else {
+          throw new Error('Could not retrieve Spotify user ID with provided developer token.');
+        }
+      } catch (error) {
+        console.error('Error using developer Spotify token:', error);
+        showCustomModal(`Failed to use developer token: ${error.message}. Please check your token or disable dev mode.`, 'error');
+        setIsAuthenticated(false);
+        setScreen('welcome');
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
+      }
+      return; // Exit if in dev mode
+    }
+
+    // Regular Spotify OAuth flow
     setIsLoading(true);
     setLoadingMessage('Initiating Spotify Connection...');
 
@@ -318,7 +372,7 @@ const App = () => {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [setIsLoading, setLoadingMessage, showCustomModal, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES]);
+  }, [setIsLoading, setLoadingMessage, showCustomModal, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES, getSpotifyUserProfile]);
 
   // Effect to handle Spotify OAuth callback (PKCE)
   useEffect(() => {
@@ -326,8 +380,8 @@ const App = () => {
     const code = urlParams.get('code');
     const error = urlParams.get('error');
 
-    // Only proceed if there's a code or an error in the URL parameters
-    if (code || error) {
+    // Only proceed if there's a code or an error in the URL parameters AND not in dev mode
+    if ((code || error) && !USE_DEV_SPOTIFY_TOKEN_MODE) {
       const handleSpotifyCallback = async () => {
         console.log('--- Spotify Callback Handler Initiated ---');
         console.log('window.location.search:', window.location.search);
@@ -419,34 +473,20 @@ const App = () => {
   }, [getSpotifyUserProfile, showCustomModal, setIsLoading, setIsAuthenticated, setScreen, setLoadingMessage, setSpotifyAccessToken, setSpotifyUserId, SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI]);
 
 
-  // --- Card Swiping/Scrolling Logic ---
-  // Effect to manage scroll position for infinite loop
+  // --- Card Swiping/Scrolling Logic (Reverted to non-infinite scroll) ---
+  // Effect to manage scroll position for centering the selected card on desktop
   useEffect(() => {
-    if (!cardContainerRef.current) return;
+    if (!cardContainerRef.current || isTouchDevice) return; // Only for desktop scroll
 
     const container = cardContainerRef.current;
     const cardWidthWithMargin = 250 + 32; // Card width + gap-x-8
 
-    // Adjust scroll position if we hit a cloned boundary
-    if (currentCardIndex === 0) { // Hit cloned last item, jump to actual last item
-      isScrollingProgrammatically.current = true;
-      container.scrollLeft = (originalScenes.length) * cardWidthWithMargin;
-      setCurrentCardIndex(originalScenes.length); // Update internal index to actual last item
-    } else if (currentCardIndex === displayScenes.length - 1) { // Hit cloned first item, jump to actual first item
-      isScrollingProgrammatically.current = true;
-      container.scrollLeft = CLONE_COUNT * cardWidthWithMargin;
-      setCurrentCardIndex(CLONE_COUNT); // Update internal index to actual first item
-    } else {
-      // For normal scrolling, ensure the selected card is in view
-      // Center the selected card in the viewport if not touch device
-      if (!isTouchDevice) {
-        isScrollingProgrammatically.current = true;
-        const offset = (container.offsetWidth / 2) - (cardWidthWithMargin / 2);
-        container.scrollLeft = (currentCardIndex * cardWidthWithMargin) - offset;
-      }
-    }
-  }, [currentCardIndex, originalScenes.length, displayScenes.length, isTouchDevice]);
+    // Scroll to center the currentCardIndex
+    // Calculate the offset to center the card in the visible area
+    const centerOffset = (container.offsetWidth / 2) - (cardWidthWithMargin / 2);
+    container.scrollLeft = (currentCardIndex * cardWidthWithMargin) - centerOffset;
 
+  }, [currentCardIndex, isTouchDevice]); // Re-run when currentCardIndex changes
 
   const onTouchStart = useCallback((e) => {
     if (!isTouchDevice) return; // Only enable swipe on touch devices
@@ -467,14 +507,11 @@ const App = () => {
       const threshold = cardContainerRef.current.offsetWidth / 5; 
 
       let newIndex = currentCardIndex;
-      if (currentTranslateX < -threshold) {
-        newIndex = (currentCardIndex + 1);
-      } else if (currentTranslateX > threshold) {
-        newIndex = (currentCardIndex - 1);
+      if (currentTranslateX < -threshold) { // Swiped left (next card)
+        newIndex = Math.min(displayScenes.length - 1, currentCardIndex + 1);
+      } else if (currentTranslateX > threshold) { // Swiped right (previous card)
+        newIndex = Math.max(0, currentCardIndex - 1);
       }
-      
-      // Clamp newIndex to valid range for displayScenes
-      newIndex = Math.max(0, Math.min(displayScenes.length - 1, newIndex));
       setCurrentCardIndex(newIndex);
     }
     setCurrentTranslateX(0); // Reset translation
@@ -482,10 +519,6 @@ const App = () => {
 
   // Handle scroll for non-touch devices
   const handleScroll = useCallback(() => {
-    if (isScrollingProgrammatically.current) {
-      isScrollingProgrammatically.current = false;
-      return;
-    }
     if (isTouchDevice || !cardContainerRef.current) return;
 
     const container = cardContainerRef.current;
@@ -493,7 +526,6 @@ const App = () => {
     const cardWidthWithMargin = 250 + 32; // Card width (250px) + gap-x-8 (32px)
 
     // Determine which card is most in view based on scroll position
-    // Adjust for centering if needed, but Math.round is usually sufficient for snapping
     const newIndex = Math.round(scrollLeft / cardWidthWithMargin);
 
     if (newIndex !== currentCardIndex) {
@@ -540,18 +572,23 @@ const App = () => {
             }
         }
     };
-    // The apiKey is expected to be provided by the Canvas environment.
-    // Leave this as an empty string, Canvas will automatically provide it at runtime.
+    // PASTE YOUR GEMINI API KEY HERE.
+    // This will bypass Canvas environment's automatic injection if it's not working.
+    // Example: 'AIzaSyC...'
     const apiKey = ""; 
-    // Reverted to passing API key as query parameter for gemini-2.0-flash as per Canvas environment expectation.
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; 
 
+    console.log("Gemini API Key before fetch:", apiKey); // DEBUG: Log API key value
+
     try {
+        if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE" || apiKey === "") {
+            throw new Error("Gemini API Key is not configured. Please paste your API key in App.jsx.");
+        }
+
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              // 'x-goog-api-key': apiKey // Removed as per Canvas environment expectation for gemini-2.0-flash
             },
             body: JSON.stringify(payload)
         });
@@ -578,7 +615,8 @@ const App = () => {
         }
     } catch (error) {
         console.error('Error calling Gemini API:', error);
-        showCustomModal('Failed to get AI recommendations. Please try again.', 'error');
+        // More specific error message if API key is empty
+        showCustomModal(`Failed to get AI recommendations: ${error.message}. Please try again.`, 'error');
         throw error;
     }
   }, [selectedScene, showCustomModal, setLoadingMessage]);
@@ -723,7 +761,7 @@ const App = () => {
     <div className={APP_CONTAINER_CLASSES} style={{
       backgroundImage: screen === 'welcome' 
         ? 'radial-gradient(circle at center, rgba(30,0,50,0.8) 0%, rgba(0,0,0,1) 70%)'
-        : (selectedScene ? `url(${selectedScene.image})` : 'none'),
+        : (selectedScene && selectedScene.image ? `url(${selectedScene.image})` : 'none'), // Defensive check
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       transition: 'background-image 0.3s ease-in-out', // Faster background transition
@@ -845,7 +883,7 @@ const App = () => {
             {/* Scene Cards Container (Swiping/Scrolling) */}
             <div
               ref={cardContainerRef}
-              className={`relative w-full h-[450px] min-h-[400px] flex items-center
+              className={`relative w-full max-w-md h-[450px] min-h-[400px] flex items-center
                 ${isTouchDevice ? 'overflow-hidden justify-center' : 'overflow-x-auto whitespace-nowrap scrollbar-hide gap-x-8'}`} /* Conditional classes, increased width, added gap-x-8 */
               onScroll={isTouchDevice ? undefined : handleScroll} /* Only for non-touch devices */
             >
@@ -871,7 +909,7 @@ const App = () => {
 
                 return (
                   <div
-                    key={`${scene.name}-${index}`} // Use index in key due to cloned elements
+                    key={`${scene.name}-${index}`} // Use index in key due to potential same names
                     className={`
                       w-[250px] h-[350px] rounded-lg overflow-hidden
                       shadow-xl shadow-black/50 border-2 border-rose-600
@@ -1054,7 +1092,7 @@ const App = () => {
 
       {/* Version Text at the very bottom of the app */}
       {screen === 'welcome' && (
-        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.9</p>
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.12</p>
       )}
     </div>
   );
