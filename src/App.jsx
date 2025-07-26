@@ -965,6 +965,9 @@ const App = () => {
           </div>
         </div>
       )}
+
+      {/* Version Text at the very bottom of the app */}
+      <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.2</p>
     </div>
   );
 };
