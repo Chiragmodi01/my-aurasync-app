@@ -117,7 +117,7 @@ const App = () => {
   const generateRandomString = (length) => {
     let text = '';
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i += possible.charAt(Math.floor(Math.random() * possible.length));) {
+    for (let i = 0; i < length; i++) { // CORRECTED LOOP CONDITION
       text += possible.charAt(Math.floor(Math.random() * possible.length));
     }
     return text;
@@ -443,14 +443,12 @@ const App = () => {
     if (isTouchDevice || !cardContainerRef.current) return;
     const container = cardContainerRef.current;
     const scrollLeft = container.scrollLeft;
-    const cardWidth = container.scrollWidth / SCENES.length; // Approximate card width
-
-    // Determine which card is most in view
+    const cardWidth = 250 + 20; // Card width + margin-right
     const newIndex = Math.round(scrollLeft / cardWidth);
     if (newIndex !== currentCardIndex) {
       setCurrentCardIndex(newIndex);
     }
-  }, [isTouchDevice, SCENES.length, currentCardIndex]);
+  }, [isTouchDevice, currentCardIndex]);
 
 
   // --- Gemini API Call ---
@@ -772,8 +770,8 @@ const App = () => {
           {/* Scene Cards Container (Swiping/Scrolling) */}
           <div
             ref={cardContainerRef}
-            className={`relative w-full max-w-sm h-[400px] flex items-center justify-center overflow-hidden
-              ${isTouchDevice ? '' : 'overflow-x-auto whitespace-nowrap scrollbar-hide'}`} /* Conditional classes */
+            className={`relative w-full max-w-sm h-[400px] flex items-center justify-center
+              ${isTouchDevice ? 'overflow-hidden' : 'overflow-x-auto whitespace-nowrap scrollbar-hide'}`} /* Conditional classes */
             onScroll={isTouchDevice ? undefined : handleScroll} /* Only for non-touch devices */
           >
             {SCENES.map((scene, index) => {
@@ -795,6 +793,7 @@ const App = () => {
                 display: 'inline-block', // For horizontal alignment
                 marginRight: '20px', // Spacing between cards
                 flexShrink: 0, // Prevent shrinking in flex container
+                verticalAlign: 'middle', // Align cards vertically in the middle of the flex item
               };
 
               return (
@@ -997,7 +996,7 @@ const App = () => {
 
       {/* Version Text at the very bottom of the app */}
       {screen === 'welcome' && (
-        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.3</p>
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.4</p>
       )}
     </div>
   );
