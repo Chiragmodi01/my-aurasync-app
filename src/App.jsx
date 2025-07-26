@@ -67,9 +67,20 @@ const App = () => {
   const [userProfileImage, setUserProfileImage] = useState(null);
   const [screen, setScreen] = useState('welcome'); // 'welcome', 'scene-selection', 'genre-selection', 'playlist-display'
   
-  // Initialize selectedScene directly with a stable reference
-  const [selectedScene, setSelectedScene] = useState(SCENES[0]); 
+  // For infinite scrolling: clone first/last elements
+  const CLONE_COUNT = 1; // Number of items to clone at each end
+  const originalScenes = SCENES;
+  const displayScenes = [
+    ...originalScenes.slice(-CLONE_COUNT), // Cloned last item(s)
+    ...originalScenes,
+    ...originalScenes.slice(0, CLONE_COUNT) // Cloned first item(s)
+  ];
 
+  // Initialize currentCardIndex to select the second original item (index 1 in originalScenes)
+  // which corresponds to index CLONE_COUNT + 1 in displayScenes (1 + 1 = 2)
+  const [currentCardIndex, setCurrentCardIndex] = useState(CLONE_COUNT + 1); 
+
+  const [selectedScene, setSelectedScene] = useState(displayScenes[currentCardIndex]); // Initialize with the correct scene
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [customMood, setCustomMood] = useState('');
   const [discoveryPreference, setDiscoveryPreference] = useState(50);
@@ -85,11 +96,11 @@ const App = () => {
   const [showUserMenu, setShowUserMenu] = useState(false); // State for user profile dropdown
 
   // --- Card Swiping/Scrolling State ---
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [startX, setStartX] = useState(0);
   const [currentTranslateX, setCurrentTranslateX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const cardContainerRef = useRef(null); // Ref for the container to get its width for swipe threshold
+  const isScrollingProgrammatically = useRef(false); // Flag to prevent infinite loop with onScroll
 
   // Detect if device is touch-enabled
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -97,9 +108,10 @@ const App = () => {
 
   // Update selected scene when currentCardIndex changes
   useEffect(() => {
-    setSelectedScene(SCENES[currentCardIndex]);
+    setSelectedScene(displayScenes[currentCardIndex]);
     setSelectedGenres([]); // Reset genres when scene changes
-  }, [currentCardIndex]); // SCENES is now a static dependency, so it's removed from here
+  }, [currentCardIndex]); // displayScenes is static, so removed from dependency array
+
 
   // --- Utility Functions ---
   const showCustomModal = useCallback((message, type = 'success') => {
@@ -408,6 +420,34 @@ const App = () => {
 
 
   // --- Card Swiping/Scrolling Logic ---
+  // Effect to manage scroll position for infinite loop
+  useEffect(() => {
+    if (!cardContainerRef.current) return;
+
+    const container = cardContainerRef.current;
+    const cardWidthWithMargin = 250 + 32; // Card width + gap-x-8
+
+    // Adjust scroll position if we hit a cloned boundary
+    if (currentCardIndex === 0) { // Hit cloned last item, jump to actual last item
+      isScrollingProgrammatically.current = true;
+      container.scrollLeft = (originalScenes.length) * cardWidthWithMargin;
+      setCurrentCardIndex(originalScenes.length); // Update internal index to actual last item
+    } else if (currentCardIndex === displayScenes.length - 1) { // Hit cloned first item, jump to actual first item
+      isScrollingProgrammatically.current = true;
+      container.scrollLeft = CLONE_COUNT * cardWidthWithMargin;
+      setCurrentCardIndex(CLONE_COUNT); // Update internal index to actual first item
+    } else {
+      // For normal scrolling, ensure the selected card is in view
+      // Center the selected card in the viewport if not touch device
+      if (!isTouchDevice) {
+        isScrollingProgrammatically.current = true;
+        const offset = (container.offsetWidth / 2) - (cardWidthWithMargin / 2);
+        container.scrollLeft = (currentCardIndex * cardWidthWithMargin) - offset;
+      }
+    }
+  }, [currentCardIndex, originalScenes.length, displayScenes.length, isTouchDevice]);
+
+
   const onTouchStart = useCallback((e) => {
     if (!isTouchDevice) return; // Only enable swipe on touch devices
     setStartX(e.touches[0].clientX);
@@ -424,28 +464,38 @@ const App = () => {
     if (!isTouchDevice) return; // Only enable swipe on touch devices
     setIsDragging(false);
     if (cardContainerRef.current) {
-      // Reduced threshold for easier swiping
       const threshold = cardContainerRef.current.offsetWidth / 5; 
 
+      let newIndex = currentCardIndex;
       if (currentTranslateX < -threshold) {
-        // Swiped left (next card)
-        setCurrentCardIndex(prevIndex => (prevIndex + 1) % SCENES.length);
+        newIndex = (currentCardIndex + 1);
       } else if (currentTranslateX > threshold) {
-        // Swiped right (previous card)
-        setCurrentCardIndex(prevIndex => (prevIndex - 1 + SCENES.length) % SCENES.length);
+        newIndex = (currentCardIndex - 1);
       }
+      
+      // Clamp newIndex to valid range for displayScenes
+      newIndex = Math.max(0, Math.min(displayScenes.length - 1, newIndex));
+      setCurrentCardIndex(newIndex);
     }
     setCurrentTranslateX(0); // Reset translation
-  }, [currentTranslateX, SCENES.length, isTouchDevice]);
+  }, [currentTranslateX, isTouchDevice, currentCardIndex, displayScenes.length]);
 
   // Handle scroll for non-touch devices
   const handleScroll = useCallback(() => {
+    if (isScrollingProgrammatically.current) {
+      isScrollingProgrammatically.current = false;
+      return;
+    }
     if (isTouchDevice || !cardContainerRef.current) return;
+
     const container = cardContainerRef.current;
     const scrollLeft = container.scrollLeft;
-    // Calculate card width including margin for accurate indexing
     const cardWidthWithMargin = 250 + 32; // Card width (250px) + gap-x-8 (32px)
+
+    // Determine which card is most in view based on scroll position
+    // Adjust for centering if needed, but Math.round is usually sufficient for snapping
     const newIndex = Math.round(scrollLeft / cardWidthWithMargin);
+
     if (newIndex !== currentCardIndex) {
       setCurrentCardIndex(newIndex);
     }
@@ -491,17 +541,17 @@ const App = () => {
         }
     };
     // The apiKey is expected to be provided by the Canvas environment.
-    // If you are running this outside of Canvas and need to provide a key,
-    // replace `""` with your actual Gemini API key.
+    // Leave this as an empty string, Canvas will automatically provide it at runtime.
     const apiKey = ""; 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`; // API key in headers
+    // Reverted to passing API key as query parameter for gemini-2.0-flash as per Canvas environment expectation.
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`; 
 
     try {
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey // Pass API key in headers
+              // 'x-goog-api-key': apiKey // Removed as per Canvas environment expectation for gemini-2.0-flash
             },
             body: JSON.stringify(payload)
         });
@@ -787,7 +837,7 @@ const App = () => {
       {screen === 'scene-selection' && (
         <div className="flex flex-col w-full h-full relative z-10 pt-16 pb-8"> {/* Main screen container, no direct centering here */}
           {/* Main Content Wrapper - takes remaining space and centers its content */}
-          <div className="flex-grow flex flex-col items-center justify-center p-4"> {/* Add padding here */}
+          <div className="flex-grow flex flex-col items-center justify-center p-4 w-full"> {/* Added w-full */}
             <h2 className="text-4xl font-bold text-center mb-8 text-gray-100 drop-shadow-lg">
               Set Your Scene.
             </h2>
@@ -799,7 +849,7 @@ const App = () => {
                 ${isTouchDevice ? 'overflow-hidden justify-center' : 'overflow-x-auto whitespace-nowrap scrollbar-hide gap-x-8'}`} /* Conditional classes, increased width, added gap-x-8 */
               onScroll={isTouchDevice ? undefined : handleScroll} /* Only for non-touch devices */
             >
-              {SCENES.map((scene, index) => {
+              {displayScenes.map((scene, index) => {
                 const isActive = index === currentCardIndex;
                 const offset = index - currentCardIndex;
 
@@ -821,7 +871,7 @@ const App = () => {
 
                 return (
                   <div
-                    key={scene.name}
+                    key={`${scene.name}-${index}`} // Use index in key due to cloned elements
                     className={`
                       w-[250px] h-[350px] rounded-lg overflow-hidden
                       shadow-xl shadow-black/50 border-2 border-rose-600
@@ -850,7 +900,7 @@ const App = () => {
             </p>
             <button
               onClick={handleSelectScene}
-              className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} w-full max-w-md`} // Adjusted to w-full max-w-md
+              className={`${BUTTON_CLASSES} ${PRIMARY_RED_CLASSES} w-full max-w-md`}
             >
               Select This Scene
             </button>
@@ -1004,7 +1054,7 @@ const App = () => {
 
       {/* Version Text at the very bottom of the app */}
       {screen === 'welcome' && (
-        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.8</p>
+        <p className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs z-10">v1.9</p>
       )}
     </div>
   );
